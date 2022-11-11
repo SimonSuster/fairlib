@@ -2,6 +2,7 @@ import sys
 
 from.loaders import TestDataset, SampleDataset
 from .Moji import DeepMojiDataset
+from .EGBinaryGradeNum import EGBinaryGradeNum
 from .Bios import BiosDataset
 from .Valence import ValenceDataset
 from .FCL_BiosDataset import FCL_BiosDataset
@@ -43,6 +44,7 @@ else:
 
 loader_map = {
     "moji":DeepMojiDataset,
+    "egbinarygradenum":EGBinaryGradeNum,
     "bios":BiosDataset,
     "test":TestDataset,
     "sample":SampleDataset,

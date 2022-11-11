@@ -438,6 +438,29 @@ def interactive_plot(plot_df, figsize=(12, 7), dpi = 100, selection="DTO"):
     # plt.subplots_adjust(right=0.75)  
     plt.show()
 
+
+def make_plot(plot_df, figure_name=None):
+    plot_df["Fairness"] = plot_df["test_fairness mean"]
+    plot_df["Accuracy"] = plot_df["test_performance mean"]
+
+    figure = plt.figure(dpi = 100)
+    with sns.axes_style("white"):
+        sns.lineplot(
+            data=plot_df,
+            x="Accuracy",
+            y="Fairness",
+            hue="Models",
+            markers=True,
+            style="Models",
+        )
+
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
+
+    if figure_name is not None:
+        figure.savefig(figure_name, dpi=960, bbox_inches="tight")
+
+
 def make_zoom_plot(
     plot_df, figure_name=None,
     xlim=None, ylim=None,
