@@ -439,15 +439,15 @@ def interactive_plot(plot_df, figsize=(12, 7), dpi = 100, selection="DTO"):
     plt.show()
 
 
-def make_plot(plot_df, figure_name=None):
+def make_plot(plot_df, figure_name=None, performance_name="Accuracy"):
     plot_df["Fairness"] = plot_df["test_fairness mean"]
-    plot_df["Accuracy"] = plot_df["test_performance mean"]
+    plot_df[performance_name] = plot_df["test_performance mean"]
 
     figure = plt.figure(dpi = 100)
     with sns.axes_style("white"):
         sns.lineplot(
             data=plot_df,
-            x="Accuracy",
+            x=performance_name,
             y="Fairness",
             hue="Models",
             markers=True,
@@ -462,7 +462,7 @@ def make_plot(plot_df, figure_name=None):
 
 
 def make_zoom_plot(
-    plot_df, figure_name=None,
+    plot_df, figure_name=None, performance_name="Accuracy",
     xlim=None, ylim=None,
     figsize=(7.5, 6), dpi = 150,
     zoom_xlim=None, zoom_ylim=None,
@@ -473,6 +473,7 @@ def make_zoom_plot(
     Args:
         plot_df (pd.DataFrame): a pd.DataFrame including numbers for each method.
         figure_name (str, optional): save the plot with figure_name. Defaults to None.
+        performance_name (str, optional): name of the performance metric to use in the plot. Defaults to Accuracy.
         xlim (tuple, optional): x-axis limit. Defaults to None.
         ylim (tuple, optional): y-aix limit. Defaults to None.
         figsize (tuple, optional): figure size. Defaults to (7.5, 6).
@@ -483,7 +484,7 @@ def make_zoom_plot(
     """
 
     plot_df["Fairness"] = plot_df["test_fairness mean"]
-    plot_df["Accuracy"] = plot_df["test_performance mean"]
+    plot_df[performance_name] = plot_df["test_performance mean"]
 
     # fig, ax = plt.subplots(1, 2, figsize=figsize, dpi = dpi, gridspec_kw={'width_ratios': [0.8, 0.2]})
     fig, ax = plt.subplots(figsize=figsize, dpi = dpi)
@@ -491,7 +492,7 @@ def make_zoom_plot(
     with sns.axes_style("white"):
         sns.lineplot(
             data=plot_df,
-            x="Accuracy",
+            x=performance_name,
             y="Fairness",
             hue="Models",
             markers=True,
@@ -509,7 +510,7 @@ def make_zoom_plot(
     with sns.axes_style("white"):
         sns.lineplot(
             data=plot_df,
-            x="Accuracy",
+            x=performance_name,
             y="Fairness",
             hue="Models",
             markers=True,
