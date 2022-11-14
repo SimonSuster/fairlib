@@ -92,7 +92,7 @@ def power_mean(series, p, axis=0):
         return np.power(total, 1 / p)
 
 
-def Aggregation_GAP(distinct_groups, all_scores, metric="TPR", group_agg_power = None, class_agg_power=2):
+def Aggregation_GAP(distinct_groups, all_scores, metric="TPR", group_agg_power=None, class_agg_power=2):
     """Aggregate fairness metrics at the group level and class level.
 
     Args:
@@ -208,6 +208,6 @@ def gap_eval_scores(y_pred, y_true, protected_attribute, metrics=["TPR","FPR","P
         all_scores[gid] = confusion_matrix_based_scores(group_confusion_matrix)
 
     for _metric in metrics:
-        eval_scores["{}_GAP".format(_metric)] = Aggregation_GAP(distinct_groups=distinct_groups, all_scores=all_scores, metric=_metric)
+        eval_scores["{}_GAP".format(_metric)] = Aggregation_GAP(distinct_groups=distinct_groups, all_scores=all_scores, metric=_metric, group_agg_power=args.group_agg_power, class_agg_power=args.class_agg_power)
 
     return eval_scores, confusion_matrices
