@@ -204,6 +204,8 @@ class BaseOptions(object):
                             help='logging level, e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL')
         parser.add_argument('--conf_file', type=str, default=None,
                             help='path to the YAML file for reproduce an an experiment')
+        parser.add_argument('--max_load', type=nonneg_int, default=None,
+                            help='max number of data instances to load, for debugging purposes')
 
         # Evaluation
         parser.add_argument('--group_agg_power', default=None, help='Generalized mean aggregation power at the group level. Will use absolute value aggregation if None.')

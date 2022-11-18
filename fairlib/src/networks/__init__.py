@@ -1,7 +1,7 @@
 import sys
 import torch
 import logging
-from .classifier import MLP, BERTClassifier,ConvNet
+from .classifier import MLP, BERTClassifier, ConvNet, EvidenceGRADEr
 from . import utils
 from . import INLP
 from . import FairCL
@@ -17,6 +17,8 @@ def get_main_model(args):
         model = BERTClassifier(args)
     elif args.encoder_architecture == "MNIST":
         model = ConvNet(args)
+    elif args.encoder_architecture == "EvidenceGRADEr":
+        model = EvidenceGRADEr(args)
     else:
         raise NotImplementedError
     

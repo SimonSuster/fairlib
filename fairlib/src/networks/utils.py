@@ -1,13 +1,35 @@
 import torch.nn as nn
 import torch
 import logging
+
+from allennlp.nn.util import move_to_device
 from torch.optim import Adam
 import time
 from pathlib import Path
 from ..evaluators import print_network, present_evaluation_scores
 import pandas as pd
 
+
 # train the main model with adv loss
+class PrimaryData(list):
+    def __init__(self, *args):
+        super().__init__(args)
+
+    def to(self, device):
+        return move_to_device(self, device)
+
+
+def prepare_batch(batch):
+    return [
+        PrimaryData(batch["feat"], batch["text_list"], batch["cat_feats_list"]),
+        batch["label"],
+        batch["protected_label"],
+        batch["instance_weights"],
+        batch["adv_instance_weights"],
+        batch["regression_label"]
+    ]
+
+
 def train_epoch(model, iterator, args, epoch):
 
     epoch_loss = 0
@@ -20,8 +42,11 @@ def train_epoch(model, iterator, args, epoch):
     data_t, t = 0, 0
     
     for it, batch in enumerate(iterator):
-        
-        text = batch[0].squeeze()
+        if args.encoder_architecture == "EvidenceGRADEr":
+            # redefine batch as a list for conformity with fairlib
+            batch = prepare_batch(batch)
+
+        text = batch[0]  # variable name really just for conformity with fairlib; text actually holds num+cat+txt feats
         tags = batch[1].long().squeeze()
         p_tags = batch[2].float().squeeze()
 
@@ -102,10 +127,11 @@ def train_epoch(model, iterator, args, epoch):
         data_t0 = time.time()
 
         if it % args.log_interval == 0:
+            n_instances = len(iterator.instances) if args.encoder_architecture == "EvidenceGRADEr" else len(iterator.dataset)
             logging.info((
                     'Epoch: {:4d} [{:7d}/{:7d} ({:2.0f}%)]\tLoss: {:.4f}\t Data Time: {:.2f}s\tTrain Time: {:.2f}s'
                 ).format(
-                    epoch, it * args.batch_size, len(iterator.dataset),
+                    epoch, it * args.batch_size, n_instances,
                     100. * it / len(iterator), loss, data_t, t,
                 ))
             data_t, t = 0, 0
@@ -148,9 +174,11 @@ def eval_epoch(model, iterator, args):
     private_labels = []
 
     for batch in iterator:
-        
-        text = batch[0]
+        if args.encoder_architecture == "EvidenceGRADEr":
+            # redefine batch as a list for conformity with fairlib
+            batch = prepare_batch(batch)
 
+        text = batch[0]
         tags = batch[1]
         p_tags = batch[2]
 
