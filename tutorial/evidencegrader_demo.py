@@ -21,21 +21,28 @@ def train(args):
     model = fairlib.networks.get_main_model(state)
     model.train_self()
 
-
+task = "bi_class2_nonaugm_all"
+fold_n = 0
 args = {
     # The name of the dataset, corresponding dataloader will be used,
     "dataset":  "EGBinaryGradeNum",
+    "encoder_architecture": "EvidenceGRADEr",
     # Specifiy the path to the input data
-    "data_dir": "/home/simon/Apps/SysRevData/data/derivations/all/splits/0/",
+    "data_dir": "/home/simon/Apps/SysRevData/data/derivations/all/splits/",
+    "fold_n": fold_n,
+    "vocabulary_dir": f"/home/simon/Apps/SysRevData/data/modelling/saved/{task}/{task}_{fold_n}/vocabulary",  # if it does not exist, the vocabulary will be created from scratch
+    "param_file": f"/home/simon/Apps/SysRev/sysrev/modelling/allennlp/training_config/{task}.jsonnet",
     # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
-    "device_id":    -1,
+    "device_id": -1,
     # Give a name to the exp, which will be used in the path
-    "exp_id":"vanilla",
+    "exp_id": "vanilla",
     "num_groups": len(TOPICS),
-    "emb_size": len(NUM_TYPES),
-    "batch_size": 32,
+    #"emb_size": len(NUM_TYPES),
+    "emb_size": 3232,
+    "n_hidden": 1,  # although in original EG, n_hidden=0, some de-biasing methods require n_hidden>0
+    #"max_load": 10,
+    "batch_size": 2,
     "group_agg_power": 2
-
 }
 
 def train_vanilla():
@@ -88,7 +95,7 @@ def train_debiasing_fcl():
         train(debiasing_args)
 
 
-#train_vanilla()
+train_vanilla()
 #train_debiasing_bt()
 #train_debiasing_adv()
 #train_debiasing_fcl()
@@ -99,7 +106,7 @@ Shared_options = {
     # The name of the dataset, corresponding dataloader will be used,
     "dataset": "EGBinaryGradeNum",
     # Specifiy the path to the input data
-    "data_dir": "/home/simon/Apps/SysRevData/data/derivations/all/splits/0/",
+    "data_dir": f"{args['data_dir']}{args['fold_n']}",
     # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
     "device_id": -1,
     # The default path for saving experimental results
