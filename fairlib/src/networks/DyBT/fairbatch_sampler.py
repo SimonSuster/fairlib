@@ -1,18 +1,11 @@
-import sys, os
-import numpy as np
-import math
-import random
 import itertools
-import copy
+import random
 
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.sampler import Sampler
+import numpy as np
 import torch
+from torch.utils.data import Dataset
+from torch.utils.data.sampler import Sampler
 
-import logging
 
 class FairBatch(Sampler):
     """FairBatch (Sampler in DataLoader).
@@ -39,13 +32,14 @@ class FairBatch(Sampler):
         lb_dict: A dictionary of real numbers indicating the lambda values in FairBatch.
         
     """
+
     def __init__(self, model, args, replacement=False):
         """Initializes FairBatch."""
-        
+
         self.model = model
         np.random.seed(args.base_seed)
         random.seed(args.base_seed)
-        
+
         self.args = args
 
         train_dataset = args.train_generator.dataset
@@ -58,70 +52,69 @@ class FairBatch(Sampler):
         self.x_data = torch.from_numpy(train_dataset.X)
         self.y_data = torch.from_numpy(train_dataset.y)
         self.g_data = torch.from_numpy(train_dataset.protected_label)
-        
+
         self.alpha = args.DyBTalpha
         self.fairness_type = args.DyBTObj
         self.replacement = replacement
-        
+
         self.N = len(self.g_data)
-        
+
         self.batch_size = args.batch_size
         self.batch_num = int(len(self.y_data) / self.batch_size)
-        
+
         # Takes the unique values of the target and group labels
         self.g_item = list(set(self.g_data.tolist()))
         self.y_item = list(set(self.y_data.tolist()))
-        
+
         self.yg_tuple = list(itertools.product(self.y_item, self.g_item))
-        
+
         # Makes masks
         self.g_mask = {}
         self.y_mask = {}
         self.yg_mask = {}
-        
+
         for tmp_g in self.g_item:
             self.g_mask[tmp_g] = (self.g_data == tmp_g)
-            
+
         for tmp_y in self.y_item:
             self.y_mask[tmp_y] = (self.y_data == tmp_y)
-            
+
         for tmp_yg in self.yg_tuple:
             self.yg_mask[tmp_yg] = (self.y_data == tmp_yg[0]) & (self.g_data == tmp_yg[1])
-        
 
         # Finds the index
         self.g_index = {}
         self.y_index = {}
         self.yg_index = {}
-        
+
         for tmp_g in self.g_item:
             self.g_index[tmp_g] = (self.g_mask[tmp_g] == 1).nonzero().squeeze()
-            
+
         for tmp_y in self.y_item:
             self.y_index[tmp_y] = (self.y_mask[tmp_y] == 1).nonzero().squeeze()
-        
+
         for tmp_yg in self.yg_tuple:
             self.yg_index[tmp_yg] = (self.yg_mask[tmp_yg] == 1).nonzero().squeeze()
-            
+
         # Length information
         self.g_len = {}
         self.y_len = {}
         self.yg_len = {}
-        
+
         for tmp_g in self.g_item:
             self.g_len[tmp_g] = len(self.g_index[tmp_g])
-            
+
         for tmp_y in self.y_item:
             self.y_len[tmp_y] = len(self.y_index[tmp_y])
-            
+
         for tmp_yg in self.yg_tuple:
             self.yg_len[tmp_yg] = len(self.yg_index[tmp_yg])
 
         # Default batch size
         self.S = {}
-        
+
         for tmp_yg in self.yg_tuple:
-            self.S[tmp_yg] = self.batch_size * (self.yg_len[tmp_yg])/self.N
+            self.S[tmp_yg] = self.batch_size * (self.yg_len[tmp_yg]) / self.N
 
         self.lb_dict = {}
         for tmp_y in self.y_item:
@@ -130,7 +123,7 @@ class FairBatch(Sampler):
 
     def epoch_loss(self):
         device = self.args.device
-        
+
         self.model.eval()
 
         if self.args.regression:
@@ -141,7 +134,7 @@ class FairBatch(Sampler):
         batch_losses = []
 
         for batch in self.data_iterator:
-            
+
             text = batch[0].squeeze()
             tags = batch[1].squeeze()
             p_tags = batch[2].squeeze()
@@ -174,7 +167,7 @@ class FairBatch(Sampler):
                 loss = criterion(predictions, tags)
 
             batch_losses.append(loss.detach().cpu())
-        
+
         return torch.cat(batch_losses, dim=0)
 
     def adjust_lambda(self):
@@ -192,33 +185,33 @@ class FairBatch(Sampler):
 
             for tmp_yg in self.yg_tuple:
                 yhat_yg[tmp_yg] = float(torch.sum(epoch_loss[self.yg_index[tmp_yg]])) / self.yg_len[tmp_yg]
-                
+
             for tmp_y in self.y_item:
                 yhat_y[tmp_y] = float(torch.sum(epoch_loss[self.y_index[tmp_y]])) / self.y_len[tmp_y]
-            
+
             # Find the max gap group within each class
-            max_index = {tmp_y:None for tmp_y in self.y_item}
-            max_diff = {tmp_y:0 for tmp_y in self.y_item}
+            max_index = {tmp_y: None for tmp_y in self.y_item}
+            max_diff = {tmp_y: 0 for tmp_y in self.y_item}
             for tmp_y in self.y_item:
                 for tmp_g in self.g_item:
                     diff = abs(yhat_yg[(tmp_y, tmp_g)] - yhat_y[tmp_y])
                     if diff >= max_diff[tmp_y]:
                         max_diff[tmp_y] = diff
                         max_index[tmp_y] = tmp_g
-            
+
             # Update lambda of groups within in each class
-            
+
             # Determin the singe of alpha, increase if a group has a larger loss. 
             for tmp_y in self.y_item:
                 if yhat_yg[(tmp_y, max_index[tmp_y])] > yhat_y[tmp_y]:
                     tmp_alpha = self.alpha
                 else:
-                    tmp_alpha = -1*self.alpha
-            
-                self.lb_dict[(tmp_y, max_index[tmp_y])] += (1 + 1/(len(self.g_item)-1)) * tmp_alpha
+                    tmp_alpha = -1 * self.alpha
+
+                self.lb_dict[(tmp_y, max_index[tmp_y])] += (1 + 1 / (len(self.g_item) - 1)) * tmp_alpha
 
                 for tmp_g in self.g_item:
-                    self.lb_dict[(tmp_y, tmp_g)] -= (1/(len(self.g_item)-1)) * tmp_alpha
+                    self.lb_dict[(tmp_y, tmp_g)] -= (1 / (len(self.g_item) - 1)) * tmp_alpha
 
             # Normalize to probability, i.e., between 0 and 1, and sum to 1
             for tmp_y in self.y_item:
@@ -234,7 +227,7 @@ class FairBatch(Sampler):
                     for tmp_g in self.g_item:
                         self.lb_dict[(tmp_y, tmp_g)] = self.lb_dict[(tmp_y, tmp_g)] / y_labs_sum
 
-    def select_batch_replacement(self, batch_size, full_index, batch_num, replacement = False):
+    def select_batch_replacement(self, batch_size, full_index, batch_num, replacement=False):
         """Selects a certain number of batches based on the given batch size.
         
         Args: 
@@ -247,30 +240,30 @@ class FairBatch(Sampler):
             Indices that indicate the data.
             
         """
-        
+
         select_index = []
-        
+
         if replacement == True:
             for _ in range(batch_num):
-                select_index.append(np.random.choice(full_index, batch_size, replace = False))
+                select_index.append(np.random.choice(full_index, batch_size, replace=False))
         else:
             tmp_index = full_index.detach().cpu().numpy().copy()
             random.shuffle(tmp_index)
-            
+
             start_idx = 0
             for i in range(batch_num):
                 if start_idx + batch_size > len(full_index):
-                    select_index.append(np.concatenate((tmp_index[start_idx:], tmp_index[ : batch_size - (len(full_index)-start_idx)])))
-                    
-                    start_idx = len(full_index)-start_idx
+                    select_index.append(np.concatenate(
+                        (tmp_index[start_idx:], tmp_index[: batch_size - (len(full_index) - start_idx)])))
+
+                    start_idx = len(full_index) - start_idx
                 else:
 
                     select_index.append(tmp_index[start_idx:start_idx + batch_size])
                     start_idx += batch_size
-            
+
         return select_index
 
-    
     def __iter__(self):
         """Iters the full process of FairBatch for serving the batches to training.
         
@@ -279,31 +272,32 @@ class FairBatch(Sampler):
             
         """
         if self.fairness_type == 'original':
-            
+
             entire_index = torch.LongTensor([i for i in range(len(self.y_data))])
-            
+
             sort_index = self.select_batch_replacement(self.batch_size, entire_index, self.batch_num, self.replacement)
-            
+
             for i in range(self.batch_num):
                 yield sort_index[i]
-            
+
         else:
-        
-            self.adjust_lambda() # Adjust the lambda values
+
+            self.adjust_lambda()  # Adjust the lambda values
             each_size = {}
-            
-            
+
             # Based on the updated lambdas, determine the size of each class in a batch
             if self.fairness_type in ['stratified_y', "EO"]:
-                
+
                 for tmp_y in self.y_item:
                     for tmp_g in self.g_item:
-                        each_size[(tmp_y,tmp_g)] = round(self.lb_dict[(tmp_y,tmp_g)]*self.batch_size * (self.y_len[tmp_y])/self.N)
+                        each_size[(tmp_y, tmp_g)] = round(
+                            self.lb_dict[(tmp_y, tmp_g)] * self.batch_size * (self.y_len[tmp_y]) / self.N)
 
             # Get the indices for each batch
             sort_index_all = {}
             for _tmp_yg in self.yg_tuple:
-                sort_index_all[_tmp_yg] = self.select_batch_replacement(each_size[_tmp_yg], self.yg_index[_tmp_yg], self.batch_num, self.replacement)
+                sort_index_all[_tmp_yg] = self.select_batch_replacement(each_size[_tmp_yg], self.yg_index[_tmp_yg],
+                                                                        self.batch_num, self.replacement)
 
             for t in range(self.batch_num):
                 key_in_fairbatch = []
@@ -317,5 +311,5 @@ class FairBatch(Sampler):
 
     def __len__(self):
         """Returns the number of batch."""
-        
+
         return self.batch_num

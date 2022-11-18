@@ -1,13 +1,19 @@
 # Other NN Architecture
 
 ## Classification Head
-Our current MLP implementation (`fairlib/src/networks/classifier`) can be used as a classification head for different backbone nets. All our methods such as balanced training and adversarial training will be supported for the new model.
+
+Our current MLP implementation (`fairlib/src/networks/classifier`) can be used as a classification head for different
+backbone nets. All our methods such as balanced training and adversarial training will be supported for the new model.
 
 ## Customized model architecture
 
-Take a look at the following example, we use the BERT model as the feature extracting network, i.e., extracting sentence representations from the BERT, and then use the extracted features as the input to the MLP classifier to make predictions. 
+Take a look at the following example, we use the BERT model as the feature extracting network, i.e., extracting sentence
+representations from the BERT, and then use the extracted features as the input to the MLP classifier to make
+predictions.
 
-We only need to define three functions: `__init__`, which is used to init the model with pretrained BERT parameters, MLP classifier, and optimizers; `forward`, which is the same to before where we extract sentence representations then use MLP to make predictions; and `hidden`, which is used to get hidden representations for adversarial training.
+We only need to define three functions: `__init__`, which is used to init the model with pretrained BERT parameters, MLP
+classifier, and optimizers; `forward`, which is the same to before where we extract sentence representations then use
+MLP to make predictions; and `hidden`, which is used to get hidden representations for adversarial training.
 
 ```python
 from transformers import BertModel
@@ -45,8 +51,10 @@ class BERTClassifier(BaseModel):
 ```
 
 ## Register Model
-the model architecture is indicated by `--encoder_architecture`, so we will need to handle different values of this argument. 
-Specifically, we need to modify the `get_main_model` function in `fairlib/src/networks/__init__.py` to support new models.
+
+the model architecture is indicated by `--encoder_architecture`, so we will need to handle different values of this
+argument. Specifically, we need to modify the `get_main_model` function in `fairlib/src/networks/__init__.py` to support
+new models.
 
 ```python
 def get_main_model(args):
@@ -65,17 +73,21 @@ def get_main_model(args):
 ```
 
 ## Register the Dataloader
+
 Since different models have their own mapping from tokens to numerical ids. We need to handle this in the dataloader.
 
 Firstly, we need to init the tokenizer in `fairlib/src/dataloaders/encoder.py`, for example,
+
 ```python
 from transformers import AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 ```
 
-Next, we need to modify the corresponding dataloader to return the idx of input texts. Please take a look at the Bios loader in `fairlib/src/dataloaders/loaders.py` for detailed examples.
+Next, we need to modify the corresponding dataloader to return the idx of input texts. Please take a look at the Bios
+loader in `fairlib/src/dataloaders/loaders.py` for detailed examples.
 
-Noticing that, to avoid encoding text to idx repeatedly, we could pre-calculate the mapped idx for the desired model, and load from file to save time.
+Noticing that, to avoid encoding text to idx repeatedly, we could pre-calculate the mapped idx for the desired model,
+and load from file to save time.
 
 ## Extensions
 

@@ -1,11 +1,11 @@
-import torch.nn as nn
-import numpy as np
-import torch
 import logging
+
+import torch
+import torch.nn as nn
 from torch.optim import Adam
-import time
-from pathlib import Path
+
 from ..augmentation_layer import Augmentation_layer
+
 
 class GradientReversalFunction(torch.autograd.Function):
     """
@@ -47,6 +47,7 @@ def print_network(net, verbose=False):
         logging.info(net)
     logging.info('Total number of parameters: %d\n' % num_params)
 
+
 class BaseDiscriminator(nn.Module):
 
     def init_for_training(self):
@@ -58,7 +59,7 @@ class BaseDiscriminator(nn.Module):
         self.optimizer = Adam(filter(lambda p: p.requires_grad, self.parameters()), lr=self.learning_rate)
 
         if self.args.adv_BT and self.args.adv_BT == "Reweighting":
-            self.criterion = torch.nn.CrossEntropyLoss(reduction = "none")
+            self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
         else:
             self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -79,20 +80,23 @@ class BaseDiscriminator(nn.Module):
         else:
             self.BN = None
 
-        assert (self.args.adv_dropout >= 0) and (self.args.adv_dropout <= 1), "Probability must be in the range from 0 to 1"
+        assert (self.args.adv_dropout >= 0) and (
+                    self.args.adv_dropout <= 1), "Probability must be in the range from 0 to 1"
         if self.args.adv_dropout > 0:
             self.dropout = nn.Dropout(p=self.args.adv_dropout)
         else:
             self.dropout = None
-    
+
     def init_hidden_layers(self):
         if self.args.adv_n_hidden == 0:
             return nn.ModuleList()
         else:
             # Hidden layers
             hidden_layers = nn.ModuleList()
-            
-            all_hidden_layers = [nn.Linear(self.input_dim, self.args.adv_hidden_size)] + [nn.Linear(self.args.adv_hidden_size, self.args.adv_hidden_size) for _ in range(self.args.adv_n_hidden-1)]
+
+            all_hidden_layers = [nn.Linear(self.input_dim, self.args.adv_hidden_size)] + [
+                nn.Linear(self.args.adv_hidden_size, self.args.adv_hidden_size) for _ in
+                range(self.args.adv_n_hidden - 1)]
 
             for _hidden_layer in all_hidden_layers:
                 hidden_layers.append(_hidden_layer)
@@ -102,7 +106,7 @@ class BaseDiscriminator(nn.Module):
                     hidden_layers.append(self.BN)
                 if self.AF is not None:
                     hidden_layers.append(self.AF)
-            
+
             return hidden_layers
 
 
@@ -112,7 +116,7 @@ class SubDiscriminator(BaseDiscriminator):
         self.args = args
         self.grad_rev = GradientReversal(self.args.adv_lambda)
         assert args.adv_n_hidden >= 0, "n_hidden must be nonnegative"
-        
+
         assert self.args.adv_level in ["input", "last_hidden", "output"]
         if self.args.adv_level == "input":
             self.input_dim = self.args.emb_size
@@ -131,12 +135,12 @@ class SubDiscriminator(BaseDiscriminator):
 
         else:
             self.output_layer = nn.Linear(args.adv_hidden_size, args.num_groups)
-        
+
         # Init batch norm, dropout, and activation function
         self.init_hyperparameters()
         # Hidden layers
         self.hidden_layers = self.init_hidden_layers()
-            
+
         # Augmentation layers
         if self.args.adv_gated:
             if self.args.adv_n_hidden == 0:
@@ -161,9 +165,9 @@ class SubDiscriminator(BaseDiscriminator):
 
         self.init_for_training()
 
-    def forward(self, input_data, group_label = None):
+    def forward(self, input_data, group_label=None):
         # input_data = self.grad_rev(input_data)
-        
+
         # Main model
         main_output = input_data
         for layer in self.hidden_layers:
@@ -179,8 +183,8 @@ class SubDiscriminator(BaseDiscriminator):
 
         output = self.output_layer(main_output)
         return output
-    
-    def hidden(self, input_data, group_label = None):
+
+    def hidden(self, input_data, group_label=None):
         # input_data = self.grad_rev(input_data)
 
         # Main model
@@ -195,5 +199,5 @@ class SubDiscriminator(BaseDiscriminator):
             specific_output = self.augmentation_components(input_data, group_label)
 
             main_output = main_output + specific_output
-        
+
         return main_output

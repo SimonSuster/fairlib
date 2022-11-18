@@ -1,24 +1,26 @@
-from fairlib.datasets.utils.download import download
-from fairlib.datasets.utils.bert_encoding import BERT_encoder
-from fairlib.src.utils import seed_everything
-import numpy as np
-import pandas as pd
-import os
 from pathlib import Path
 
-professions = ["accountant","architect","attorney","chiropractor","comedian","composer","dentist","dietitian","dj","filmmaker","interior_designer","journalist","model","nurse","painter","paralegal","pastor","personal_trainer","photographer","physician","poet","professor","psychologist","rapper","software_engineer","surgeon","teacher","yoga_teacher"]
+import pandas as pd
+
+from fairlib.datasets.utils.bert_encoding import BERT_encoder
+from fairlib.datasets.utils.download import download
+
+professions = ["accountant", "architect", "attorney", "chiropractor", "comedian", "composer", "dentist", "dietitian",
+               "dj", "filmmaker", "interior_designer", "journalist", "model", "nurse", "painter", "paralegal", "pastor",
+               "personal_trainer", "photographer", "physician", "poet", "professor", "psychologist", "rapper",
+               "software_engineer", "surgeon", "teacher", "yoga_teacher"]
 
 professions2id = {
-    j:i for i,j in enumerate(professions)
+    j: i for i, j in enumerate(professions)
 }
 
 gender2id = {
-    "m":0,
-    "f":1
+    "m": 0,
+    "f": 1
 }
 
-class Bios:
 
+class Bios:
     _NAME = "Bios"
     _SPLITS = ["train", "dev", "test"]
 
@@ -31,13 +33,13 @@ class Bios:
 
         for split in self._SPLITS:
             download(
-                url = "https://storage.googleapis.com/ai2i/nullspace/biasbios/{}.pickle".format(split), 
-                dest_folder = self.dest_folder
-                )
+                url="https://storage.googleapis.com/ai2i/nullspace/biasbios/{}.pickle".format(split),
+                dest_folder=self.dest_folder
+            )
 
     def bert_encoding(self):
         for split in self._SPLITS:
-            split_df = pd.DataFrame(pd.read_pickle(Path(self.dest_folder)/"{}.pickle".format(split)))
+            split_df = pd.DataFrame(pd.read_pickle(Path(self.dest_folder) / "{}.pickle".format(split)))
 
             text_data = list(split_df["hard_text"])
             avg_data, cls_data = self.encoder.encode(text_data)

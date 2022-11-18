@@ -1,17 +1,17 @@
 import os
+import warnings
 from pathlib import Path
+
+import numpy as np
 import torch
 import yaml
 from yaml.loader import SafeLoader
-import numpy as np
 
-import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
-from tqdm import tqdm 
-import math
-import seaborn as sns
-import matplotlib.pyplot as plt
+
+
+# import seaborn as sns
 
 
 def mkdirs(paths):
@@ -39,6 +39,7 @@ def mkdir(path):
         except FileExistsError:
             pass
 
+
 def power_mean(series, p, axis=0):
     """calculate the generalized mean
 
@@ -50,13 +51,14 @@ def power_mean(series, p, axis=0):
     Returns:
         np.array: generalized mean of the inputs
     """
-    if p>50:
+    if p > 50:
         return np.max(series, axis=axis)
-    elif p<-50:
+    elif p < -50:
         return np.min(series, axis=axis)
     else:
         total = np.mean(np.power(series, p), axis=axis)
         return np.power(total, 1 / p)
+
 
 def l2norm(matrix_1, matrix_2):
     """calculate Euclidean distance
@@ -68,16 +70,17 @@ def l2norm(matrix_1, matrix_2):
     Returns:
         float: the row-wise Euclidean distance 
     """
-    return np.power(np.sum(np.power(matrix_1-matrix_2, 2), axis=1), 0.5)
+    return np.power(np.sum(np.power(matrix_1 - matrix_2, 2), axis=1), 0.5)
 
-def DTO(fairness_metric, performacne_metric, utopia_fairness = None, utopia_performance = None):
+
+def DTO(fairness_metric, performacne_metric, utopia_fairness=None, utopia_performance=None):
     """calculate DTO for each condidate model
 
     Args:
         fairness_metric (List): fairness evaluation results (1-GAP)
         performacne_metric (List): performance evaluation results
     """
-    
+
     fairness_metric, performacne_metric = np.array(fairness_metric), np.array(performacne_metric)
     # Best metric
     if (utopia_performance is None):
@@ -86,16 +89,17 @@ def DTO(fairness_metric, performacne_metric, utopia_fairness = None, utopia_perf
         utopia_fairness = np.max(fairness_metric)
 
     # Normalize
-    performacne_metric = performacne_metric/utopia_performance
-    fairness_metric = fairness_metric/utopia_fairness
+    performacne_metric = performacne_metric / utopia_performance
+    fairness_metric = fairness_metric / utopia_fairness
 
     # Reshape and concatnate
-    performacne_metric = performacne_metric.reshape(-1,1)
-    fairness_metric = fairness_metric.reshape(-1,1)
+    performacne_metric = performacne_metric.reshape(-1, 1)
+    fairness_metric = fairness_metric.reshape(-1, 1)
     normalized_metric = np.concatenate([performacne_metric, fairness_metric], axis=1)
 
     # Calculate Euclidean distance
     return l2norm(normalized_metric, np.ones_like(normalized_metric))
+
 
 # find folders for each run
 def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id):
@@ -118,8 +122,8 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
     exps = []
     for root, dirs, files in os.walk(results_dir / project_dir):
         # for file in files:
-            # if file.endswith(".txt"):
-                # print(os.path.join(root, file))
+        # if file.endswith(".txt"):
+        # print(os.path.join(root, file))
         for dir in dirs:
             if dir.startswith(model_id):
                 _dirs = Path(os.path.join(root, dir))
@@ -127,7 +131,7 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
                 # Open the file and load the file
                 with open(_dirs / 'opt.yaml') as f:
                     _opt = yaml.load(f, Loader=SafeLoader)
-                
+
                 _checkpoints_dirs = []
                 for root2, dirs2, files2 in os.walk(_dirs / checkpoint_dir):
                     for file2 in files2:
@@ -136,14 +140,15 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
                             _checkpoints_dirs.append(_dirs2)
                 exps.append(
                     {
-                        "opt":_opt,
-                        "opt_dir":str(os.path.join(root, dir, 'opt.yaml')),
-                        "dir":_checkpoints_dirs,
+                        "opt": _opt,
+                        "opt_dir": str(os.path.join(root, dir, 'opt.yaml')),
+                        "dir": _checkpoints_dirs,
                     }
                 )
     return exps
 
-def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics = False):
+
+def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=False):
     """given the log path for a exp, read log and return the dev&test performacne, fairness, and DTO
 
     Args:
@@ -156,8 +161,8 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics 
     """
 
     epoch_id = []
-    epoch_scores_dev = {"performance":[],"fairness":[]}
-    epoch_scores_test = {"performance":[],"fairness":[]}
+    epoch_scores_dev = {"performance": [], "fairness": []}
+    epoch_scores_test = {"performance": [], "fairness": []}
     for epoch_result_dir in exp["dir"]:
         epoch_result = torch.load(epoch_result_dir)
 
@@ -165,30 +170,32 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics 
         epoch_id.append(epoch_result["epoch"])
 
         # Get fairness evaluation scores, 1-GAP, the larger the better
-        epoch_scores_dev["fairness"].append(1-epoch_result["dev_evaluations"][GAP_metric])
-        epoch_scores_test["fairness"].append(1-epoch_result["test_evaluations"][GAP_metric])
+        epoch_scores_dev["fairness"].append(1 - epoch_result["dev_evaluations"][GAP_metric])
+        epoch_scores_test["fairness"].append(1 - epoch_result["test_evaluations"][GAP_metric])
 
         epoch_scores_dev["performance"].append(epoch_result["dev_evaluations"][Performance_metric])
         epoch_scores_test["performance"].append(epoch_result["test_evaluations"][Performance_metric])
 
         if keep_original_metrics:
             for _dev_keys in epoch_result["dev_evaluations"].keys():
-                epoch_scores_dev[_dev_keys] = (epoch_scores_dev.get(_dev_keys,[]) + [epoch_result["dev_evaluations"][_dev_keys]])
-            
+                epoch_scores_dev[_dev_keys] = (
+                            epoch_scores_dev.get(_dev_keys, []) + [epoch_result["dev_evaluations"][_dev_keys]])
+
             for _test_keys in epoch_result["test_evaluations"].keys():
-                epoch_scores_test[_test_keys] = (epoch_scores_test.get(_test_keys,[]) + [epoch_result["test_evaluations"][_test_keys]])
+                epoch_scores_test[_test_keys] = (
+                            epoch_scores_test.get(_test_keys, []) + [epoch_result["test_evaluations"][_test_keys]])
 
     # Calculate the DTO for dev and test 
     dev_DTO = DTO(fairness_metric=epoch_scores_dev["fairness"], performacne_metric=epoch_scores_dev["performance"])
     test_DTO = DTO(fairness_metric=epoch_scores_test["fairness"], performacne_metric=epoch_scores_test["performance"])
-    
+
     epoch_results_dict = {
-            "epoch":epoch_id,
-            "dev_DTO":dev_DTO,
-            # "test_fairness":epoch_scores_test["fairness"],
-            # "test_performance":epoch_scores_test["performance"],
-            "test_DTO":test_DTO,
-        }
+        "epoch": epoch_id,
+        "dev_DTO": dev_DTO,
+        # "test_fairness":epoch_scores_test["fairness"],
+        # "test_performance":epoch_scores_test["performance"],
+        "test_DTO": test_DTO,
+    }
 
     for _dev_metric_keys in epoch_scores_dev.keys():
         epoch_results_dict["dev_{}".format(_dev_metric_keys)] = epoch_scores_dev[_dev_metric_keys]
@@ -199,7 +206,9 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics 
 
     return epoch_scores
 
-def retrive_all_exp_results(exp,GAP_metric_name, Performance_metric_name,index_column_names, keep_original_metrics = False):
+
+def retrive_all_exp_results(exp, GAP_metric_name, Performance_metric_name, index_column_names,
+                            keep_original_metrics=False):
     """retrive experimental results according to the input list of experiments.
 
     Args:
@@ -214,24 +223,25 @@ def retrive_all_exp_results(exp,GAP_metric_name, Performance_metric_name,index_c
     """
     # Get scores
     epoch_scores = get_model_scores(
-        exp=exp, GAP_metric=GAP_metric_name, 
+        exp=exp, GAP_metric=GAP_metric_name,
         Performance_metric=Performance_metric_name,
-        keep_original_metrics = keep_original_metrics,
-        )
+        keep_original_metrics=keep_original_metrics,
+    )
     _exp_results = epoch_scores
 
     _exp_opt = exp["opt"]
     # Get hyperparameters for this epoch
     for hyperparam_key in index_column_names:
-        _exp_results[hyperparam_key] = [_exp_opt[hyperparam_key]]*len(_exp_results)
-    
-    _exp_results["opt_dir"] = [exp["opt_dir"]]*len(_exp_results)
+        _exp_results[hyperparam_key] = [_exp_opt[hyperparam_key]] * len(_exp_results)
+
+    _exp_results["opt_dir"] = [exp["opt_dir"]] * len(_exp_results)
 
     return _exp_results
 
+
 def retrive_exp_results(
-    exp,GAP_metric_name, Performance_metric_name,
-    selection_criterion,index_column_names, keep_original_metrics = False):
+        exp, GAP_metric_name, Performance_metric_name,
+        selection_criterion, index_column_names, keep_original_metrics=False):
     """Retrive experimental results of a epoch from the saved checkpoint.
 
     Args:
@@ -248,10 +258,10 @@ def retrive_exp_results(
 
     # Get scores
     epoch_scores = get_model_scores(
-        exp=exp, GAP_metric=GAP_metric_name, 
+        exp=exp, GAP_metric=GAP_metric_name,
         Performance_metric=Performance_metric_name,
         keep_original_metrics=keep_original_metrics,
-        )
+    )
     if selection_criterion == "DTO":
         selected_epoch_id = np.argmin(epoch_scores["dev_{}".format(selection_criterion)])
     else:
@@ -268,13 +278,14 @@ def retrive_exp_results(
     # Merge opt with scores
     for key in selected_epoch_scores.keys():
         _exp_results[key] = selected_epoch_scores[key]
-    
+
     _exp_results["opt_dir"] = exp["opt_dir"]
     _exp_results["epoch"] = selected_epoch_id
 
     return _exp_results
 
-def is_pareto_efficient(costs, return_mask = True):
+
+def is_pareto_efficient(costs, return_mask=True):
     """Find the pareto-efficient points
 
     If return_mask is True, this will be an (n_points, ) boolean array
@@ -290,29 +301,30 @@ def is_pareto_efficient(costs, return_mask = True):
     is_efficient = np.arange(costs.shape[0])
     n_points = costs.shape[0]
     next_point_index = 0  # Next index in the is_efficient array to search for
-    while next_point_index<len(costs):
-        nondominated_point_mask = np.any(costs<costs[next_point_index], axis=1)
+    while next_point_index < len(costs):
+        nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
         nondominated_point_mask[next_point_index] = True
         is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
         costs = costs[nondominated_point_mask]
-        next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
+        next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
     if return_mask:
-        is_efficient_mask = np.zeros(n_points, dtype = bool)
+        is_efficient_mask = np.zeros(n_points, dtype=bool)
         is_efficient_mask[is_efficient] = True
         return is_efficient_mask
     else:
         return is_efficient
 
+
 def auc_performance_fairness_tradeoff(
-    pareto_df,
-    random_performance = 0, 
-    pareto_selection = "test",
-    fairness_metric_name = "fairness",
-    performance_metric_name = "performance",
-    interpolation = "linear",
-    performance_threshold = None,
-    normalization = False,
-    ):
+        pareto_df,
+        random_performance=0,
+        pareto_selection="test",
+        fairness_metric_name="fairness",
+        performance_metric_name="performance",
+        interpolation="linear",
+        performance_threshold=None,
+        normalization=False,
+):
     """calculate the area under the performance--fairness trade-off curve.
 
     Args:
@@ -338,7 +350,7 @@ def auc_performance_fairness_tradeoff(
     results_df = results_df.append({
         fairness_col_name: 1,
         performance_col_name: random_performance,
-        }, ignore_index=True)
+    }, ignore_index=True)
 
     sorted_results_df = results_df.sort_values(by=[fairness_col_name])
 
@@ -349,40 +361,42 @@ def auc_performance_fairness_tradeoff(
             performance_threshold = sorted_results_df.values[-1][1]
 
         # Find the closest performed points to the threshold
-        closest_worser_performed_point =  sorted_results_df[sorted_results_df[performance_col_name]<=performance_threshold].values[0]
-        closest_better_performed_point =  sorted_results_df[sorted_results_df[performance_col_name]>=performance_threshold].values[-1]
+        closest_worser_performed_point = \
+        sorted_results_df[sorted_results_df[performance_col_name] <= performance_threshold].values[0]
+        closest_better_performed_point = \
+        sorted_results_df[sorted_results_df[performance_col_name] >= performance_threshold].values[-1]
 
         # Interpolation
         assert interpolation in ["linear", "constant"]
         if interpolation == "constant":
-            if (performance_threshold-closest_worser_performed_point[1]) <= (closest_better_performed_point[1]-performance_threshold):
+            if (performance_threshold - closest_worser_performed_point[1]) <= (
+                    closest_better_performed_point[1] - performance_threshold):
                 interpolation_fairness = closest_worser_performed_point[0]
             else:
                 interpolation_fairness = closest_better_performed_point[0]
         elif interpolation == "linear":
             _ya, _xa = closest_worser_performed_point[0], closest_worser_performed_point[1]
             _yb, _xb = closest_better_performed_point[0], closest_better_performed_point[1]
-            interpolation_fairness = _ya+(_yb-_ya)*((performance_threshold-_xa)/(_xb-_xa))
+            interpolation_fairness = _ya + (_yb - _ya) * ((performance_threshold - _xa) / (_xb - _xa))
 
         interpolated_point = {
-                fairness_col_name: interpolation_fairness,
-                performance_col_name: performance_threshold,
-            }
-        
-        sorted_results_df = sorted_results_df[sorted_results_df[performance_col_name]>=performance_threshold]
+            fairness_col_name: interpolation_fairness,
+            performance_col_name: performance_threshold,
+        }
+
+        sorted_results_df = sorted_results_df[sorted_results_df[performance_col_name] >= performance_threshold]
         sorted_results_df = sorted_results_df.append(
             interpolated_point, ignore_index=True,
         )
 
-
     filtered_curve = sorted_results_df.sort_values(by=[performance_col_name])
     auc_filtered_curve = np.trapz(
-        filtered_curve[fairness_col_name], 
+        filtered_curve[fairness_col_name],
         x=filtered_curve[performance_col_name], )
 
     # Calculate the normalization term
     if normalization:
-        normalization_term = (1-min(filtered_curve[performance_col_name]))
+        normalization_term = (1 - min(filtered_curve[performance_col_name]))
         auc_filtered_curve = auc_filtered_curve / normalization_term
 
     return auc_filtered_curve, filtered_curve

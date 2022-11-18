@@ -1,18 +1,11 @@
-import sys, os
-import numpy as np
-import math
-import random
 import itertools
-import copy
+import random
 
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.sampler import Sampler
+import numpy as np
 import torch
+from torch.utils.data import Dataset
+from torch.utils.data.sampler import Sampler
 
-import logging
 
 class BaseDyBT(Sampler):
     """Base Sample Class (Sampler in DataLoader).
@@ -36,13 +29,14 @@ class BaseDyBT(Sampler):
         lb_dict: A dictionary of real numbers indicating the lambda values in FairBatch.
         
     """
+
     def __init__(self, model, args, replacement=False):
         """Initializes FairBatch."""
-        
+
         self.model = model
         np.random.seed(args.base_seed)
         random.seed(args.base_seed)
-        
+
         self.args = args
 
         train_dataset = args.train_generator.dataset
@@ -55,99 +49,97 @@ class BaseDyBT(Sampler):
         self.x_data = torch.from_numpy(train_dataset.X)
         self.y_data = torch.from_numpy(train_dataset.y)
         self.g_data = torch.from_numpy(train_dataset.protected_label)
-        
+
         self.alpha = args.DyBTalpha
         self.fairness_type = args.DyBTObj
         self.replacement = replacement
-        
+
         self.N = len(self.g_data)
-        
+
         self.batch_size = args.batch_size
         self.batch_num = int(len(self.y_data) / self.batch_size)
-        
+
         # Takes the unique values of the target and group labels
         self.g_item = list(set(self.g_data.tolist()))
         self.y_item = list(set(self.y_data.tolist()))
-        
+
         self.yg_tuple = list(itertools.product(self.y_item, self.g_item))
-        
+
         # Makes masks
         self.g_mask = {}
         self.y_mask = {}
         self.yg_mask = {}
-        
+
         for tmp_g in self.g_item:
             self.g_mask[tmp_g] = (self.g_data == tmp_g)
-            
+
         for tmp_y in self.y_item:
             self.y_mask[tmp_y] = (self.y_data == tmp_y)
-            
+
         for tmp_yg in self.yg_tuple:
             self.yg_mask[tmp_yg] = (self.y_data == tmp_yg[0]) & (self.g_data == tmp_yg[1])
-        
 
         # Finds the index
         self.g_index = {}
         self.y_index = {}
         self.yg_index = {}
-        
+
         for tmp_g in self.g_item:
             self.g_index[tmp_g] = (self.g_mask[tmp_g] == 1).nonzero().squeeze()
-            
+
         for tmp_y in self.y_item:
             self.y_index[tmp_y] = (self.y_mask[tmp_y] == 1).nonzero().squeeze()
-        
+
         for tmp_yg in self.yg_tuple:
             self.yg_index[tmp_yg] = (self.yg_mask[tmp_yg] == 1).nonzero().squeeze()
-            
+
         # Length information
         self.g_len = {}
         self.y_len = {}
         self.yg_len = {}
-        
+
         for tmp_g in self.g_item:
             self.g_len[tmp_g] = len(self.g_index[tmp_g])
-            
+
         for tmp_y in self.y_item:
             self.y_len[tmp_y] = len(self.y_index[tmp_y])
-            
+
         for tmp_yg in self.yg_tuple:
             self.yg_len[tmp_yg] = len(self.yg_index[tmp_yg])
 
-        
         self.lb_dict = {}
         assert args.DyBTinit in ["original", "balanced"], NotImplemented
         if args.DyBTinit == "original":
             # Default batch size
             for tmp_yg in self.yg_tuple:
-                self.lb_dict[tmp_yg] = (self.yg_len[tmp_yg])/self.N
+                self.lb_dict[tmp_yg] = (self.yg_len[tmp_yg]) / self.N
         else:
             if args.DyBTObj == "joint":
                 for tmp_yg in self.yg_tuple:
-                    self.lb_dict[tmp_yg] = (1.0/len(self.yg_tuple))
+                    self.lb_dict[tmp_yg] = (1.0 / len(self.yg_tuple))
 
             elif args.DyBTObj == "y":
                 for tmp_yg in self.yg_tuple:
-                    self.lb_dict[tmp_yg] = (self.yg_len[tmp_yg]/self.y_len[tmp_yg[0]]) * (1.0/len(self.y_item))
+                    self.lb_dict[tmp_yg] = (self.yg_len[tmp_yg] / self.y_len[tmp_yg[0]]) * (1.0 / len(self.y_item))
 
             elif args.DyBTObj == "g":
                 for tmp_yg in self.yg_tuple:
-                    self.lb_dict[tmp_yg] = (self.yg_len[tmp_yg]/self.g_len[tmp_yg[1]]) * (1.0/len(self.g_item))
+                    self.lb_dict[tmp_yg] = (self.yg_len[tmp_yg] / self.g_len[tmp_yg[1]]) * (1.0 / len(self.g_item))
 
             elif args.DyBTObj in ["stratified_y", "EO"]:
                 for tmp_yg in self.yg_tuple:
-                    self.lb_dict[tmp_yg] = self.y_len[tmp_yg[0]]/self.N * (1.0/len(self.g_item))
+                    self.lb_dict[tmp_yg] = self.y_len[tmp_yg[0]] / self.N * (1.0 / len(self.g_item))
 
             elif args.DyBTObj == "stratified_g":
                 for tmp_yg in self.yg_tuple:
-                    self.lb_dict[tmp_yg] = self.g_len[tmp_yg[1]]/self.N * (1.0/len(self.y_item))
-            
+                    self.lb_dict[tmp_yg] = self.g_len[tmp_yg[1]] / self.N * (1.0 / len(self.y_item))
+
             else:
                 raise NotImplementedError
 
     def epoch_loss(self):
         device = self.args.device
-        
+
         self.model.eval()
 
         if self.args.regression:
@@ -158,7 +150,7 @@ class BaseDyBT(Sampler):
         batch_losses = []
 
         for batch in self.data_iterator:
-            
+
             text = batch[0].squeeze()
             tags = batch[1].squeeze()
             p_tags = batch[2].squeeze()
@@ -191,7 +183,7 @@ class BaseDyBT(Sampler):
                 loss = criterion(predictions, tags)
 
             batch_losses.append(loss.detach().cpu())
-        
+
         return torch.cat(batch_losses, dim=0)
 
     def adjust_lambda(self):
@@ -199,8 +191,7 @@ class BaseDyBT(Sampler):
         """
         raise NotImplementedError
 
-
-    def select_batch_replacement(self, batch_size, full_index, batch_num, replacement = False):
+    def select_batch_replacement(self, batch_size, full_index, batch_num, replacement=False):
         """Selects a certain number of batches based on the given batch size.
         
         Args: 
@@ -213,34 +204,35 @@ class BaseDyBT(Sampler):
             Indices that indicate the data.
             
         """
-        
+
         select_index = []
-        
+
         if replacement == True:
             for _ in range(batch_num):
-                select_index.append(np.random.choice(full_index, batch_size, replace = False))
+                select_index.append(np.random.choice(full_index, batch_size, replace=False))
         else:
             tmp_index = full_index.detach().cpu().numpy().copy()
             random.shuffle(tmp_index)
-            
+
             start_idx = 0
             for i in range(batch_num):
                 if start_idx + batch_size > len(full_index):
-                    select_index.append(np.concatenate((tmp_index[start_idx:], tmp_index[ : batch_size - (len(full_index)-start_idx)])))
-                    
-                    start_idx = len(full_index)-start_idx
+                    select_index.append(np.concatenate(
+                        (tmp_index[start_idx:], tmp_index[: batch_size - (len(full_index) - start_idx)])))
+
+                    start_idx = len(full_index) - start_idx
                 else:
 
                     select_index.append(tmp_index[start_idx:start_idx + batch_size])
                     start_idx += batch_size
-            
+
         return select_index
 
     def update_size_of_all_group(self):
         each_size = {}
 
         for tmp_yg in self.yg_tuple:
-            each_size[tmp_yg] = round(self.lb_dict[tmp_yg]*self.batch_size)
+            each_size[tmp_yg] = round(self.lb_dict[tmp_yg] * self.batch_size)
 
         return each_size
 
@@ -251,14 +243,15 @@ class BaseDyBT(Sampler):
             Indices that indicate the data in each batch.
             
         """
-        self.adjust_lambda() # Adjust the lambda values
+        self.adjust_lambda()  # Adjust the lambda values
 
         each_size = self.update_size_of_all_group()
 
         # Get the indices for each batch
         sort_index_all = {}
         for _tmp_yg in self.yg_tuple:
-            sort_index_all[_tmp_yg] = self.select_batch_replacement(each_size[(_tmp_yg)], self.yg_index[(_tmp_yg)], self.batch_num, self.replacement)
+            sort_index_all[_tmp_yg] = self.select_batch_replacement(each_size[(_tmp_yg)], self.yg_index[(_tmp_yg)],
+                                                                    self.batch_num, self.replacement)
 
         for t in range(self.batch_num):
             key_in_fairbatch = []
@@ -272,5 +265,5 @@ class BaseDyBT(Sampler):
 
     def __len__(self):
         """Returns the number of batch."""
-        
+
         return self.batch_num

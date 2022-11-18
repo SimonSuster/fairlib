@@ -1,20 +1,17 @@
-import numpy as np
-from ..utils import BaseDataset
-from pathlib import Path
-import pandas as pd
 import os
+
 import torch
 from torchvision import transforms
 
+from ..utils import BaseDataset
+
 
 class MNISTDataset(BaseDataset):
-
-    transform=transforms.Compose([
+    transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307, 0.1307, 0.), (0.3081, 0.3081, 0.3081))])
 
     def load_data(self):
-
         self.data_dir = os.path.join(self.args.data_dir, "colored_MNIST_{}.pt".format(self.split))
 
         data = torch.load(self.data_dir)

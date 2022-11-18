@@ -1,7 +1,10 @@
-import numpy as np
-from ..utils import BaseDataset
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
+
+from ..utils import BaseDataset
+
 
 class BiosDataset(BaseDataset):
     embedding_type = "bert_avg_SE"
@@ -23,10 +26,10 @@ class BiosDataset(BaseDataset):
         else:
             raise NotImplementedError
 
-        self.y = data["profession_class"].astype(np.float64) #Profession
+        self.y = data["profession_class"].astype(np.float64)  # Profession
         if self.args.protected_task == "gender":
-            self.protected_label = data["gender_class"].astype(np.int32) # Gender
+            self.protected_label = data["gender_class"].astype(np.int32)  # Gender
         elif self.args.protected_task == "economy":
-            self.protected_label = data["economy_class"].astype(np.int32) # Economy
+            self.protected_label = data["economy_class"].astype(np.int32)  # Economy
         else:
-            self.protected_label = data["intersection_class"].astype(np.int32) # Intersection
+            self.protected_label = data["intersection_class"].astype(np.int32)  # Intersection

@@ -1,13 +1,16 @@
-import numpy as np
-from ..utils import BaseDataset
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
+
+from ..utils import BaseDataset
 
 
 class ValenceDataset(BaseDataset):
     embedding_type = "cls"
     CV_fold = 0
     text_type = "text"
+
     def load_data(self):
         self.filename = "valence_arousal_{}_{}.pickle".format(self.split, self.CV_fold)
 

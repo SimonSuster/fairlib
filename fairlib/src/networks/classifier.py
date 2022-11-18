@@ -44,7 +44,7 @@ class Encoders(Model):
             self.embedder = embedder
             self.encoder = encoder
             encoder_out_dim = encoder.get_output_dim() * (
-                        4 - (1 if self.ablated_feat is not None and self.ablated_feat_type == "text" else 0))
+                    4 - (1 if self.ablated_feat is not None and self.ablated_feat_type == "text" else 0))
             if self.reduced_output_bert_dim is not None:
                 self.reduce_dim = torch.nn.Linear(encoder_out_dim, self.reduced_output_bert_dim)
                 encoder_out_dim = self.reduced_output_bert_dim
@@ -364,7 +364,7 @@ class BERTClassifier(BaseModel):
     def freeze_roberta_layers(self, number_of_layers):
         "number of layers: the first number of layers to be freezed"
         assert (
-                    number_of_layers < 14 and number_of_layers > -14), "beyond the total number of RoBERTa layer groups(14)."
+                number_of_layers < 14 and number_of_layers > -14), "beyond the total number of RoBERTa layer groups(14)."
         for target_layer in self.bert_layers[:number_of_layers]:
             for param in target_layer.parameters():
                 param.requires_grad = False

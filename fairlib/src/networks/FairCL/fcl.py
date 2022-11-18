@@ -1,5 +1,6 @@
-from .utils import Contrastive_Loss
 import torch
+
+from .utils import Contrastive_Loss
 
 
 class Fair_Contrastive_Loss(torch.nn.Module):
@@ -16,12 +17,13 @@ class Fair_Contrastive_Loss(torch.nn.Module):
         self.fcl_lambda_y = args.fcl_lambda_y
         self.fcl_lambda_g = args.fcl_lambda_g
 
-
-        self.contrastive_loss_y = Contrastive_Loss(device=self.device, temperature=self.temperature_y, base_temperature= self.base_temperature_y)
-        self.contrastive_loss_g = Contrastive_Loss(device=self.device, temperature=self.temperature_g, base_temperature= self.base_temperature_g)
+        self.contrastive_loss_y = Contrastive_Loss(device=self.device, temperature=self.temperature_y,
+                                                   base_temperature=self.base_temperature_y)
+        self.contrastive_loss_g = Contrastive_Loss(device=self.device, temperature=self.temperature_g,
+                                                   base_temperature=self.base_temperature_g)
 
     def forward(self, hs, tags, p_tags):
-        
+
         fcl_loss_y = self.fcl_lambda_y * self.contrastive_loss_y(hs, tags)
         if self.FCLObj == "g":
             fcl_loss_g = self.fcl_lambda_g * self.contrastive_loss_g(hs, p_tags)
@@ -37,7 +39,7 @@ class Fair_Contrastive_Loss(torch.nn.Module):
             for tmp_group in distinct_y_labels:
                 tmp_group_index = y_mask.get(tmp_group, [])
                 fcl_loss_g += self.contrastive_loss_g(hs[tmp_group_index], p_tags[tmp_group_index])
-            
-            fcl_loss_g = self.fcl_lambda_g * fcl_loss_g/len(distinct_y_labels)
+
+            fcl_loss_g = self.fcl_lambda_g * fcl_loss_g / len(distinct_y_labels)
 
         return fcl_loss_y - fcl_loss_g

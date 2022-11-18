@@ -1,18 +1,12 @@
-import sys
-
 import numpy as np
 import torch
-import logging
-
 from allennlp.common import Params
-from allennlp.data import DataLoader
 from allennlp.data.data_loaders import SimpleDataLoader
 from allennlp.data.fields import TensorField, LabelField
 
-from .loaders import default_dataset_roots, name2loader
 from . import utils
-from .encoder import text2id, TextIndexer, get_vocab
-from collections import defaultdict
+from .encoder import text2id, get_vocab
+from .loaders import default_dataset_roots, name2loader
 
 
 def get_params(param_file):
@@ -25,10 +19,12 @@ def expand_x(d):
     We use allennlp's fields to encode those additional data.
     """
     for c, inst in enumerate(d.X):
-        inst.add_field("protected_label", LabelField(int(d.protected_label[c]), skip_indexing=True, label_namespace="protected_labels"))
+        inst.add_field("protected_label",
+                       LabelField(int(d.protected_label[c]), skip_indexing=True, label_namespace="protected_labels"))
         inst.add_field("instance_weights", TensorField(np.array(d.instance_weights[c])))
         inst.add_field("adv_instance_weights", TensorField(np.array(d.adv_instance_weights[c])))
-        inst.add_field("regression_label", LabelField(int(d.regression_label[c]), skip_indexing=True, label_namespace="regression_labels"))
+        inst.add_field("regression_label",
+                       LabelField(int(d.regression_label[c]), skip_indexing=True, label_namespace="regression_labels"))
 
 
 def get_dataloaders(args):
@@ -44,11 +40,9 @@ def get_dataloaders(args):
         tuple: dataloaders for training set, development set, and test set.
     """
     task_dataloader = name2loader(args)
-    
-    if args.encoder_architecture in ["Fixed", "MNIST"]:
+
+    if args.encoder_architecture in ["Fixed", "MNIST", "EvidenceGRADEr"]:
         pass
-    elif args.encoder_architecture == "EvidenceGRADEr":
-        args.text_indexer = TextIndexer(args)
     elif args.encoder_architecture == "BERT":
         # Init the encoder form text to idx.
         args.text_encoder = text2id(args)
@@ -61,14 +55,14 @@ def get_dataloaders(args):
 
     # DataLoader Parameters
     train_dataloader_params = {
-            'batch_size': args.batch_size,
-            'shuffle': True,
-            'num_workers': args.num_workers}
+        'batch_size': args.batch_size,
+        'shuffle': True,
+        'num_workers': args.num_workers}
 
     eval_dataloader_params = {
-            'batch_size': args.test_batch_size,
-            'shuffle': False,
-            'num_workers': args.num_workers}
+        'batch_size': args.test_batch_size,
+        'shuffle': False,
+        'num_workers': args.num_workers}
 
     # init dataloader
     if args.encoder_architecture == "EvidenceGRADEr":
@@ -77,11 +71,14 @@ def get_dataloaders(args):
         expand_x(train_data)
         expand_x(dev_data)
         expand_x(test_data)
-        training_generator = SimpleDataLoader(train_data.X, vocab=vocab, batch_size=train_dataloader_params["batch_size"], shuffle=train_dataloader_params["shuffle"])
-        validation_generator = SimpleDataLoader(dev_data.X, vocab=vocab, batch_size=eval_dataloader_params["batch_size"],
-                                              shuffle=eval_dataloader_params["shuffle"])
+        training_generator = SimpleDataLoader(train_data.X, vocab=vocab,
+                                              batch_size=train_dataloader_params["batch_size"],
+                                              shuffle=train_dataloader_params["shuffle"])
+        validation_generator = SimpleDataLoader(dev_data.X, vocab=vocab,
+                                                batch_size=eval_dataloader_params["batch_size"],
+                                                shuffle=eval_dataloader_params["shuffle"])
         test_generator = SimpleDataLoader(test_data.X, vocab=vocab, batch_size=eval_dataloader_params["batch_size"],
-                                              shuffle=eval_dataloader_params["shuffle"])
+                                          shuffle=eval_dataloader_params["shuffle"])
     else:
         training_generator = torch.utils.data.DataLoader(train_data, **train_dataloader_params)
         validation_generator = torch.utils.data.DataLoader(dev_data, **eval_dataloader_params)

@@ -1,6 +1,8 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from .evaluator import confusion_matrix_based_scores
+
 
 def group_level_metrics(confusion_matrices, metric, class_id=1):
     """organizing the evaluation scores for each group.
@@ -26,15 +28,16 @@ def group_level_metrics(confusion_matrices, metric, class_id=1):
             n_k = np.sum(cnf_k) - np.sum(cnf_k, axis=1)[class_id]
         metric_k = confusion_matrix_based_scores(cnf_k)[metric][class_id]
         metric_df.append({
-            "gid":gid, 
-            "metric_k":metric_k, 
-            "n_k":n_k,
+            "gid": gid,
+            "metric_k": metric_k,
+            "n_k": n_k,
         })
     metric_df = pd.DataFrame(metric_df)
 
     return metric_df
 
-def double_correction(metric_df, n_sample = 1000, threshold = False, sample_variance = True):
+
+def double_correction(metric_df, n_sample=1000, threshold=False, sample_variance=True):
     """Calculated corrected variance estimation.
 
     Args:
@@ -49,30 +52,29 @@ def double_correction(metric_df, n_sample = 1000, threshold = False, sample_vari
     bootstrapping = []
     for _value in metric_df.values:
         bootstrapping.append(
-            np.random.binomial(n=_value[2], p=_value[1], size=n_sample)/_value[2]
-            )
+            np.random.binomial(n=_value[2], p=_value[1], size=n_sample) / _value[2]
+        )
     mu_hats = np.stack(bootstrapping)
     n_groups = len(metric_df.values)
-    nks = metric_df.values[:,2]
-
+    nks = metric_df.values[:, 2]
 
     if sample_variance:
-        uncorrected_var = np.var(mu_hats, axis=0)*n_groups/(n_groups-1)
+        uncorrected_var = np.var(mu_hats, axis=0) * n_groups / (n_groups - 1)
     else:
         uncorrected_var = np.var(mu_hats, axis=0)
-    sigma2_hats = (mu_hats*(1-mu_hats)/nks.reshape(-1,1))
+    sigma2_hats = (mu_hats * (1 - mu_hats) / nks.reshape(-1, 1))
     sigma2_hats_mean = np.mean(sigma2_hats, axis=0)
     corrected_var = uncorrected_var - sigma2_hats_mean
-    double_corrected_var = uncorrected_var - 2*sigma2_hats_mean + np.mean(sigma2_hats/nks.reshape(-1,1), axis=0)
+    double_corrected_var = uncorrected_var - 2 * sigma2_hats_mean + np.mean(sigma2_hats / nks.reshape(-1, 1), axis=0)
 
     if threshold:
         corrected_var = np.maximum(0, corrected_var)
         double_corrected_var = np.maximum(0, double_corrected_var)
 
     results_df = pd.DataFrame({
-        "uncorrected_var":uncorrected_var,
-        "corrected_var":corrected_var,
-        "double_corrected_var":double_corrected_var,
+        "uncorrected_var": uncorrected_var,
+        "corrected_var": corrected_var,
+        "double_corrected_var": double_corrected_var,
     })
 
     return results_df

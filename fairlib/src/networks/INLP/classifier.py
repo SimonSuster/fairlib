@@ -6,7 +6,6 @@ import numpy as np
 class Classifier(object):
 
     def __init__(self):
-
         pass
 
     def train(self, X_train: np.ndarray, Y_train: np.ndarray, X_dev: np.ndarray, Y_dev: np.ndarray) -> float:
@@ -28,16 +27,12 @@ class Classifier(object):
         raise NotImplementedError
 
 
-
-
 class SKlearnClassifier(Classifier):
 
     def __init__(self, m):
-
         self.model = m
 
     def train_network(self, X_train: np.ndarray, Y_train: np.ndarray, X_dev: np.ndarray, Y_dev: np.ndarray) -> float:
-
         """
         :param X_train:
         :param Y_train:
@@ -57,6 +52,6 @@ class SKlearnClassifier(Classifier):
 
         w = self.model.coef_
         if len(w.shape) == 1:
-                w = np.expand_dims(w, 0)
+            w = np.expand_dims(w, 0)
 
         return w

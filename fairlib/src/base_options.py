@@ -1,24 +1,25 @@
 import argparse
+import logging
 import os
+import random
+import sys
+import time
+import traceback
+from contextlib import contextmanager
+
+import numpy as np
 import torch
 import yaml
-import time
-import numpy as np
-import random
-import logging
-from contextlib import contextmanager
-import sys
-import traceback
 
-from . import utils
 from . import dataloaders
 from . import networks
-from .networks import adv
+from . import utils
 from .networks import FairCL
+from .networks import adv
 from .networks.DyBT import Group_Difference_Loss
 
-class State(object):
 
+class State(object):
     class UniqueNamespace(argparse.Namespace):
         def __init__(self, requires_unique=True):
             self.__requires_unique = requires_unique
@@ -33,7 +34,6 @@ class State(object):
                     "'{}' appears several times: {}, {}.".format(
                         name, self.__set_value[name], value))
             self.__set_value[name] = value
-
 
     __inited = False
 
@@ -111,6 +111,7 @@ class State(object):
         dirs = [opt.project_dir, opt.dataset, opt.exp_id, opt.model_dir]
         return os.path.join(opt.results_dir, *dirs)
 
+
 class BaseOptions(object):
     def __init__(self):
         # argparse utils
@@ -183,7 +184,7 @@ class BaseOptions(object):
                             help='base random seed (default: 1)')
         parser.add_argument('--log_interval', type=int, default=50, metavar='N',
                             help='how many batches to wait before logging training status')
-        parser.add_argument('--save_batch_results', action='store_true', default=False, 
+        parser.add_argument('--save_batch_results', action='store_true', default=False,
                             help='if saving batch evaluation results')
         parser.add_argument('--checkpoint_interval', type=int, default=1, metavar='N',
                             help='checkpoint interval (epoch)')
@@ -208,22 +209,24 @@ class BaseOptions(object):
                             help='max number of data instances to load, for debugging purposes')
 
         # Evaluation
-        parser.add_argument('--group_agg_power', default=None, help='Generalized mean aggregation power at the group level. Will use absolute value aggregation if None.')
-        parser.add_argument('--class_agg_power', default=2, help='Generalized mean aggregation power at the class level.')
+        parser.add_argument('--group_agg_power', default=None,
+                            help='Generalized mean aggregation power at the group level. Will use absolute value aggregation if None.')
+        parser.add_argument('--class_agg_power', default=2,
+                            help='Generalized mean aggregation power at the class level.')
 
         # Regression related arguments
-        parser.add_argument('--regression',  action='store_true', default=False, 
+        parser.add_argument('--regression', action='store_true', default=False,
                             help='indicate the downstream task is regression')
-        parser.add_argument('--n_bins',  type=int, default=4, 
+        parser.add_argument('--n_bins', type=int, default=4,
                             help='number of bins for discretizing proxy labels')
 
         # Handle iPython arguments
         parser.add_argument('--f', type=str, default=None, help='path to the YAML file for reproduce an an experiment')
 
         # Arguments for the main task model
-        parser.add_argument('--hidden_size',  type=pos_int, default=300, 
+        parser.add_argument('--hidden_size', type=pos_int, default=300,
                             help='number of hidden units for the main task classifier')
-        parser.add_argument('--n_hidden',  type=int, default=2, 
+        parser.add_argument('--n_hidden', type=int, default=2,
                             help='number of hidden layers')
         parser.add_argument('--dropout', type=float, default=0,
                             help='dropout probability')
@@ -235,24 +238,25 @@ class BaseOptions(object):
                             help='number of protected classes')
         parser.add_argument('--activation_function', type=str, default="Tanh",
                             help='nonlinear activation function for the main task model')
-        parser.add_argument('--batch_norm',  action='store_true', default=False, 
+        parser.add_argument('--batch_norm', action='store_true', default=False,
                             help='apply 1d batch norm to the model')
-        parser.add_argument('--classification_head_update_frequency',  type=pos_int, default=1,
+        parser.add_argument('--classification_head_update_frequency', type=pos_int, default=1,
                             help='the update frequency of the main model classification head (every N batches)')
 
         # Arguments for balanced training
         parser.add_argument('--BT', type=str, default=None, help='Reweighting | Resampling | Downsampling')
         parser.add_argument('--BTObj', type=str, default=None, help='joint | y | g | stratified_y | stratified_g | EO')
-        parser.add_argument('--full_label',  action='store_true', default=True, help='require full protected label')
+        parser.add_argument('--full_label', action='store_true', default=True, help='require full protected label')
 
         # Arguments for augmented training
-        parser.add_argument('--gated',  action='store_true', default=False, 
+        parser.add_argument('--gated', action='store_true', default=False,
                             help='gated model for augmented inputs given protected labels')
-        parser.add_argument('--gated_mapping',  type=str, default=None)
+        parser.add_argument('--gated_mapping', type=str, default=None)
 
         # Arguments for dynamic balanced training
         parser.add_argument('--DyBT', type=str, default=None, help='FairBatch | GroupDifference | GeneralizedFB')
-        parser.add_argument('--DyBTObj', type=str, default=None, help='joint | y | g | stratified_y | stratified_g | EO')
+        parser.add_argument('--DyBTObj', type=str, default=None,
+                            help='joint | y | g | stratified_y | stratified_g | EO')
         parser.add_argument('--DyBTalpha', type=float, default=0.1, help='a positive number for dynamic adjustment.')
         parser.add_argument('--DyBTinit', type=str, default="original", help='original | balanced')
 
@@ -274,30 +278,30 @@ class BaseOptions(object):
         parser.add_argument('--adv_epochs_since_improvement', type=pos_int, default=5,
                             help='terminate discriminator training for early stopping')
         parser.add_argument('--adv_lambda', type=float, default=1, help='strength of adversarial regularization')
-        parser.add_argument('--adv_hidden_size',  type=pos_int, default=300, 
+        parser.add_argument('--adv_hidden_size', type=pos_int, default=300,
                             help='number of hidden units for the adversarial discriminator')
-        parser.add_argument('--adv_n_hidden',  type=int, default=2, 
+        parser.add_argument('--adv_n_hidden', type=int, default=2,
                             help='number of hidden layers of the discriminator')
         parser.add_argument('--adv_dropout', type=float, default=0,
                             help='dropout probability in the discriminator')
         parser.add_argument('--adv_activation_function', type=str, default="ReLu",
                             help='nonlinear activation function for the discriminator')
-        parser.add_argument('--adv_batch_norm',  action='store_true', default=False, 
+        parser.add_argument('--adv_batch_norm', action='store_true', default=False,
                             help='apply 1d batch norm to the discriminator')
 
         # Gated adv
-        parser.add_argument('--adv_gated',  action='store_true', default=False, 
+        parser.add_argument('--adv_gated', action='store_true', default=False,
                             help='gated discriminator for augmented inputs given target labels')
         parser.add_argument('--adv_BT', type=str, default=None, help='instacne reweighting for adv')
         parser.add_argument('--adv_BTObj', type=str, default=None, help='instacne reweighting for adv')
 
-        parser.add_argument('--adv_gated_mapping',  type=str, default=None)
+        parser.add_argument('--adv_gated_mapping', type=str, default=None)
         # Diverse
         parser.add_argument('--adv_num_subDiscriminator', type=pos_int, default=1,
                             help='number of subdiscriminators. 1 is the standard setting.')
-        parser.add_argument('--adv_diverse_lambda', type=float, default=0.0, 
+        parser.add_argument('--adv_diverse_lambda', type=float, default=0.0,
                             help='strength of difference loss to encourage diverse representations for ensemble adv.')
-        
+
         # Decoupling adversarial training
         parser.add_argument('--adv_decoupling', action='store_true', default=False,
                             help='decoupling the training and regularization of the adv discriminator and the main task model.')
@@ -312,7 +316,7 @@ class BaseOptions(object):
         # INLP
         parser.add_argument('--INLP', action='store_true', default=False,
                             help='Perform INLP')
-        parser.add_argument("--INLP_discriminator_reweighting", type=str, default=None, 
+        parser.add_argument("--INLP_discriminator_reweighting", type=str, default=None,
                             help='if train the linear discriminator with reweighting')
         parser.add_argument("--INLP_by_class", action='store_true', default=False,
                             help="estimate the nullspace by_class")
@@ -322,7 +326,7 @@ class BaseOptions(object):
                             help="ignore the iteration if the acc is lower than the threshold")
 
         # Fair Supervised Contrastive Learning
-        parser.add_argument("--FCL",action='store_true', default=False,
+        parser.add_argument("--FCL", action='store_true', default=False,
                             help='Perform Fair Supervised Contrastive Learning')
         parser.add_argument('--FCLObj', type=str, default="g", help='g | EO')
         parser.add_argument("--fcl_temperature_y", type=float, default=0.01,
@@ -339,7 +343,8 @@ class BaseOptions(object):
                             help="strength of the fair supervised contrastive loss")
 
         # Manipulate data distribution directly after data loading by interpolating distributions.
-        parser.add_argument('--GBT', action="store_true", default=False, help='whether or not manipulate loaded data distribution')
+        parser.add_argument('--GBT', action="store_true", default=False,
+                            help='whether or not manipulate loaded data distribution')
         parser.add_argument('--GBTObj', type=str, default=None, help='joint | y | g | y_cond_g | g_cond_y')
         parser.add_argument('--GBT_N', type=nonneg_int, default=None, help='size of the manipulated dataset')
         parser.add_argument("--GBT_alpha", type=float, default=1, help="interpolation for generalized BT")
@@ -360,7 +365,7 @@ class BaseOptions(object):
         state.extras.update(opt_pairs)
         return self.set_state(state, dummy=True)
 
-    def get_state(self, args:dict={}, conf_file=None, silence=False):
+    def get_state(self, args: dict = {}, conf_file=None, silence=False):
         """get state from yaml and args
 
         Args:
@@ -380,7 +385,7 @@ class BaseOptions(object):
         if len(unknowns) != 0:
             logging.info('Unexpected args: {}'.format(unknowns))
         opt = vars(opt)
-        
+
         if conf_file is not None:
             with open(conf_file, 'r') as f:
                 yaml_opt = yaml.full_load(f)
@@ -390,9 +395,9 @@ class BaseOptions(object):
                 with open(opt["conf_file"], 'r') as f:
                     yaml_opt = yaml.full_load(f)
                 opt.update(yaml_opt)
-        
+
         opt.update(args)
-        
+
         self.opt = argparse.Namespace(**opt)
         self.state = State(self.opt)
         return self.set_state(self.state, silence=silence)
@@ -406,7 +411,7 @@ class BaseOptions(object):
         state.opt.start_time = time.strftime(r"%Y-%m-%d %H:%M:%S")
 
         state.set_output_flag(not dummy)
-        
+
         if not dummy:
             utils.mkdir(base_dir)
 
@@ -424,14 +429,14 @@ class BaseOptions(object):
 
             logging_prefix = ''
             utils.logging.configure(
-                state.opt.log_file, 
+                state.opt.log_file,
                 getattr(logging, state.opt.log_level),
                 prefix=logging_prefix
-                )
+            )
 
             logging.info("=" * 40 + " " + state.opt.start_time + " " + "=" * 40)
             logging.info('Base directory is {}'.format(base_dir))
-            
+
         # Write yaml
         yaml_str = yaml.dump(state.merge(public_only=True), default_flow_style=False, indent=4)
         if not silence:
@@ -456,9 +461,9 @@ class BaseOptions(object):
                     logging.warning('{} already exists, moved to {}'.format(yaml_name, old_opt_new_name))
                 except FileNotFoundError:
                     logging.warning((
-                        '{} already exists, tried to move to {}, but failed, '
-                        'possibly due to other process having already done it'
-                    ).format(yaml_name, old_opt_new_name))
+                                        '{} already exists, tried to move to {}, but failed, '
+                                        'possibly due to other process having already done it'
+                                    ).format(yaml_name, old_opt_new_name))
                     pass
 
             with open(yaml_name, 'w') as f:
@@ -511,17 +516,17 @@ class BaseOptions(object):
                 # Format stacktrace
                 stack_trace = list()
                 for trace in trace_back:
-                    stack_trace.append("File : %s , Line : %d, Func.Name : %s, Message : %s" % (trace[0], trace[1], trace[2], trace[3]))
-                
+                    stack_trace.append("File : %s , Line : %d, Func.Name : %s, Message : %s" % (
+                    trace[0], trace[1], trace[2], trace[3]))
+
                 logging.info("Exception type : %s " % ex_type.__name__)
-                logging.info("Exception message : %s" %ex_value)
-                logging.info("Stack trace : %s" %stack_trace)
-                
+                logging.info("Exception message : %s" % ex_value)
+                logging.info("Stack trace : %s" % stack_trace)
+
                 logging.info('dataloaders need to be initialized!')
-            
+
             # Init discriminator for adversarial training
             if state.adv_debiasing:
-
                 state.opt.discriminator = networks.adv.Discriminator(state)
                 logging.info('Discriminator built!')
                 # adv.utils.print_network(state.opt.discriminator.subdiscriminators[0])
@@ -531,12 +536,11 @@ class BaseOptions(object):
             # Init the fair supervised contrastive loss
             if state.FCL:
                 state.opt.FairSCL = FairCL.Fair_Contrastive_Loss(state)
-            
+
             # Init the group difference loss
             if (state.DyBT is not None) and (state.DyBT == "GroupDifference"):
                 state.opt.group_difference_loss = Group_Difference_Loss(state)
 
         return state
-
 
 # options = BaseOptions()

@@ -3,23 +3,24 @@
 # wget https://storage.googleapis.com/ai2i/nullspace/deepmoji/neg_pos.npy -P data/deepmoji
 # wget https://storage.googleapis.com/ai2i/nullspace/deepmoji/neg_neg.npy -P data/deepmoji
 
-from fairlib.datasets.utils.download import download
-from fairlib.src.utils import seed_everything
-import numpy as np
 import os
 
-class Moji:
+import numpy as np
 
+from fairlib.datasets.utils.download import download
+from fairlib.src.utils import seed_everything
+
+
+class Moji:
     _NAME = "Moji"
     _SPLITS = ["pos_pos", "pos_neg", "neg_pos", "neg_neg"]
 
     def __init__(self, dest_folder):
         self.dest_folder = dest_folder
 
-
     def read_data_file(self, input_file: str):
         vecs = np.load(input_file)
-        
+
         seed_everything(2020)
         np.random.shuffle(vecs)
 
@@ -29,9 +30,9 @@ class Moji:
 
         for split in self._SPLITS:
             download(
-                url = "https://storage.googleapis.com/ai2i/nullspace/deepmoji/{}.npy".format(split), 
-                dest_folder = self.dest_folder
-                )
+                url="https://storage.googleapis.com/ai2i/nullspace/deepmoji/{}.npy".format(split),
+                dest_folder=self.dest_folder
+            )
 
     def data_splits(self):
         for split in ['pos_pos', 'pos_neg', 'neg_pos', 'neg_neg']:

@@ -1,12 +1,13 @@
-
-from typing import Dict
-import numpy as np
-import scipy
-from . import classifier
-from typing import List
-from tqdm import tqdm
 import random
 import warnings
+from typing import Dict
+from typing import List
+
+import numpy as np
+import scipy
+from tqdm import tqdm
+
+from . import classifier
 
 
 def get_rowspace_projection(W: np.ndarray) -> np.ndarray:
@@ -18,12 +19,13 @@ def get_rowspace_projection(W: np.ndarray) -> np.ndarray:
     if np.allclose(W, 0):
         w_basis = np.zeros_like(W.T)
     else:
-        w_basis = scipy.linalg.orth(W.T) # orthogonal basis
+        w_basis = scipy.linalg.orth(W.T)  # orthogonal basis
 
-    w_basis = w_basis * np.sign(w_basis[0][0]) # handle sign ambiguity
-    P_W = w_basis.dot(w_basis.T) # orthogonal projection on W's rowspace
+    w_basis = w_basis * np.sign(w_basis[0][0])  # handle sign ambiguity
+    P_W = w_basis.dot(w_basis.T)  # orthogonal projection on W's rowspace
 
     return P_W
+
 
 def get_projection_to_intersection_of_nullspaces(rowspace_projection_matrices: List[np.ndarray], input_dim: int):
     """
@@ -36,10 +38,11 @@ def get_projection_to_intersection_of_nullspaces(rowspace_projection_matrices: L
     """
 
     I = np.eye(input_dim)
-    Q = np.sum(rowspace_projection_matrices, axis = 0)
+    Q = np.sum(rowspace_projection_matrices, axis=0)
     P = I - get_rowspace_projection(Q)
 
     return P
+
 
 def debias_by_specific_directions(directions: List[np.ndarray], input_dim: int):
     """
@@ -63,8 +66,8 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
                              is_autoregressive: bool,
                              min_accuracy: float, X_train: np.ndarray, Y_train: np.ndarray, X_dev: np.ndarray,
                              Y_dev: np.ndarray, by_class=True, Y_train_main=None,
-                             Y_dev_main=None, dropout_rate = 0,
-                             importance_identifier = []
+                             Y_dev_main=None, dropout_rate=0,
+                             importance_identifier=[]
                              ) -> np.ndarray:
     """
     :param classifier_class: the sklearn classifier class (SVM/Perceptron etc.)
@@ -84,7 +87,8 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
     :return: P, the debiasing projection; rowspace_projections, the list of all rowspace projection; Ws, the list of all calssifiers.
     """
     if dropout_rate > 0 and is_autoregressive:
-        warnings.warn("Note: when using dropout with autoregressive training, the property w_i.dot(w_(i+1)) = 0 no longer holds.")
+        warnings.warn(
+            "Note: when using dropout with autoregressive training, the property w_i.dot(w_(i+1)) = 0 no longer holds.")
 
     I = np.eye(input_dim)
 
@@ -102,12 +106,11 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
     for i in pbar:
 
         clf = classifier.SKlearnClassifier(classifier_class(**cls_params))
-        dropout_scale = 1./(1 - dropout_rate + 1e-6)
-        dropout_mask = (np.random.rand(*X_train.shape) < (1-dropout_rate)).astype(float) * dropout_scale
-
+        dropout_scale = 1. / (1 - dropout_rate + 1e-6)
+        dropout_mask = (np.random.rand(*X_train.shape) < (1 - dropout_rate)).astype(float) * dropout_scale
 
         if by_class:
-            #cls = np.random.choice(Y_train_main)  # uncomment for frequency-based sampling
+            # cls = np.random.choice(Y_train_main)  # uncomment for frequency-based sampling
             cls = random.choice(main_task_labels)
             relevant_idx_train = Y_train_main == cls
             relevant_idx_dev = Y_dev_main == cls
@@ -115,13 +118,14 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
             relevant_idx_train = np.ones(X_train_cp.shape[0], dtype=bool)
             relevant_idx_dev = np.ones(X_dev_cp.shape[0], dtype=bool)
 
-        acc = clf.train_network((X_train_cp * dropout_mask)[relevant_idx_train], Y_train[relevant_idx_train], X_dev_cp[relevant_idx_dev], Y_dev[relevant_idx_dev])
+        acc = clf.train_network((X_train_cp * dropout_mask)[relevant_idx_train], Y_train[relevant_idx_train],
+                                X_dev_cp[relevant_idx_dev], Y_dev[relevant_idx_dev])
         pbar.set_description("iteration: {}, accuracy: {}".format(i, acc))
         if acc < min_accuracy: continue
 
         W = clf.get_weights()
         Ws.append(W)
-        P_rowspace_wi = get_rowspace_projection(W) # projection to W's rowspace
+        P_rowspace_wi = get_rowspace_projection(W)  # projection to W's rowspace
         rowspace_projections.append(P_rowspace_wi)
 
         if is_autoregressive:
@@ -135,10 +139,10 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
 
             P = get_projection_to_intersection_of_nullspaces(rowspace_projections, input_dim)
             # project
-            if len(importance_identifier)>0:
+            if len(importance_identifier) > 0:
                 for dim_id in importance_identifier:
-                    P[dim_id] = 0 # zero row
-                    P[:,dim_id] = 0 # zero col
+                    P[dim_id] = 0  # zero row
+                    P[:, dim_id] = 0  # zero col
                     # P[dim_id,dim_id]=1 # diag 1
 
             X_train_cp = (P.dot(X_train.T)).T
@@ -158,31 +162,31 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
 
 if __name__ == '__main__':
 
-    from sklearn.linear_model import SGDClassifier, Perceptron, LogisticRegression
+    from sklearn.linear_model import SGDClassifier
 
     N = 10000
     d = 300
     X = np.random.rand(N, d) - 0.5
-    Y = np.array([1 if sum(x) > 0 else 0 for x in X]) #X < 0 #np.random.rand(N) < 0.5 #(X + 0.01 * (np.random.rand(*X.shape) - 0.5)) < 0 #np.random.rand(5000) < 0.5
-    #Y = np.array(Y, dtype = int)
+    Y = np.array([1 if sum(x) > 0 else 0 for x in
+                  X])  # X < 0 #np.random.rand(N) < 0.5 #(X + 0.01 * (np.random.rand(*X.shape) - 0.5)) < 0 #np.random.rand(5000) < 0.5
+    # Y = np.array(Y, dtype = int)
 
     num_classifiers = 200
-    classifier_class = SGDClassifier #Perceptron
+    classifier_class = SGDClassifier  # Perceptron
     input_dim = d
     is_autoregressive = True
     min_accuracy = 0.0
 
-    P, rowspace_projections, Ws = get_debiasing_projection(classifier_class, {}, num_classifiers, input_dim, is_autoregressive, min_accuracy, X, Y, X, Y, by_class = False)
+    P, rowspace_projections, Ws = get_debiasing_projection(classifier_class, {}, num_classifiers, input_dim,
+                                                           is_autoregressive, min_accuracy, X, Y, X, Y, by_class=False)
 
     I = np.eye(P.shape[0])
-    P_alternative = I - np.sum(rowspace_projections, axis = 0)
+    P_alternative = I - np.sum(rowspace_projections, axis=0)
     P_by_product = I.copy()
 
     for P_Rwi in rowspace_projections:
-
         P_Nwi = I - P_Rwi
         P_by_product = P_Nwi.dot(P_by_product)
-
 
     """testing"""
 
@@ -200,17 +204,15 @@ if __name__ == '__main__':
 
     x = np.random.rand(d) - 0.5
     for w in Ws:
-
         assert np.allclose(np.linalg.norm(w.dot(P.dot(x))), 0.0)
 
     # validate that each two classifiers are orthogonal (this is expected to be true only with autoregressive training)
 
     if is_autoregressive:
-        for i,w in enumerate(Ws):
+        for i, w in enumerate(Ws):
 
             for j, w2 in enumerate(Ws):
 
                 if i == j: continue
 
                 assert np.allclose(np.linalg.norm(w.dot(w2.T)), 0)
-

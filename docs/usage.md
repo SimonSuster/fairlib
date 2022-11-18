@@ -1,6 +1,5 @@
 ## Usage
 
-
 ### Basic operation
 
 ```bash
@@ -18,31 +17,32 @@ python fairlib --exp_id EXP_NAME
 | model_dir           | models        | directory storing trained models                           |
 | num_workers         | 0             | number of data loader workers                              |
 
-The corresponding results such options and output logs will be saved in `results_dir/project_dir/dataset/exp_id`, while the model checkpoints and related predictions will be save in `results_dir/project_dir/dataset/exp_id/model_dir`.
+The corresponding results such options and output logs will be saved in `results_dir/project_dir/dataset/exp_id`, while
+the model checkpoints and related predictions will be save in `results_dir/project_dir/dataset/exp_id/model_dir`.
 
 - Train a vanilla model without debiasing
 
-  - Train a mode over Moji with DeepMoji representations.
-    ```bash
-        python fairlib --dataset Moji --emb_size 2304 --num_classes 2 --num_groups 2 --data_dir Path_to_data
-    ```
-  - Train a model over Bios with fixed BERT-base representations.
-    ```bash
-        python fairlib --dataset Bios_gender --emb_size 768 --num_classes 28 --num_groups 2 --data_dir Path_to_data
+    - Train a mode over Moji with DeepMoji representations.
+      ```bash
+          python fairlib --dataset Moji --emb_size 2304 --num_classes 2 --num_groups 2 --data_dir Path_to_data
+      ```
+    - Train a model over Bios with fixed BERT-base representations.
+      ```bash
+          python fairlib --dataset Bios_gender --emb_size 768 --num_classes 28 --num_groups 2 --data_dir Path_to_data
+  
+          python fairlib --dataset Bios_economy --emb_size 768 --num_classes 28 --num_groups 2 --data_dir Path_to_data
+  
+          python fairlib --dataset Bios_both --emb_size 768 --num_classes 28 --num_groups 4 --data_dir Path_to_data
+      ```
 
-        python fairlib --dataset Bios_economy --emb_size 768 --num_classes 28 --num_groups 2 --data_dir Path_to_data
-
-        python fairlib --dataset Bios_both --emb_size 768 --num_classes 28 --num_groups 4 --data_dir Path_to_data
-    ```
-
-  - Train a model over Bios with trainable BERT-base representations.
-    ```bash
-        python fairlib --dataset Bios_gender --emb_size 768 --num_classes 28 --encoder_architecture BERT --batch_size 16
-
-        python fairlib --dataset Bios_economy --emb_size 768 --num_classes 28 --encoder_architecture BERT --batch_size 16
-
-        python fairlib --dataset Bios_both --emb_size 768 --num_classes 28 --encoder_architecture BERT --batch_size 16
-    ```
+    - Train a model over Bios with trainable BERT-base representations.
+      ```bash
+          python fairlib --dataset Bios_gender --emb_size 768 --num_classes 28 --encoder_architecture BERT --batch_size 16
+  
+          python fairlib --dataset Bios_economy --emb_size 768 --num_classes 28 --encoder_architecture BERT --batch_size 16
+  
+          python fairlib --dataset Bios_both --emb_size 768 --num_classes 28 --encoder_architecture BERT --batch_size 16
+      ```
 
 | Name                     | Default value | Description                                               |
 |--------------------------|---------------|-----------------------------------------------------------|
@@ -112,7 +112,6 @@ python fairlib --INLP
 | INLP_n                          | 300           | the maximum number of null-space projection iteration       |
 | INLP_min_acc                    | 0.0           | ignore the iteration if the acc is lower than the threshold |
 
-
 - Fair Contrastive Learning
 
 ```bash
@@ -152,7 +151,8 @@ python fairlib --DyBT FairBatch --DyBTObj stratified_y
 | DyBTObj    | None          | joint \| y \| g \| stratified_y \| stratified_g \| EO        |
 | DyBTalpha  | 0.1           | a positive number for dynamic adjustment.                    |
 
-For `Connecting Loss Difference with Equal Opportunity for Fair Models`, the **Diff** and **Mean** are: 
+For `Connecting Loss Difference with Equal Opportunity for Fair Models`, the **Diff** and **Mean** are:
+
 ```bash
 # L_diff as described in Section 3.2
 python fairlib --DyBT GroupDifference --DyBTObj EO
@@ -207,9 +207,12 @@ python fairlib --BT --BTObj joint --gated
 | adv_batch_norm          | False         | apply 1d batch norm to the model                                         |
 
 ### Add New Datasets/Models
-Our implementation is friendly for adding new datasets and model architectures, please see docs for detailed instructions.
+
+Our implementation is friendly for adding new datasets and model architectures, please see docs for detailed
+instructions.
 
 ### Reproducibility
+
 ```bash
 python fairlib --conf_file PATH_TO_EXP/opt.yaml
 ```

@@ -1,6 +1,8 @@
-import sys
-from setuptools import setup, find_packages
 import os
+import sys
+
+from setuptools import setup, find_packages
+
 thelibFolder = os.getcwd()
 requirementPath = thelibFolder + '/requirements.txt'
 
@@ -29,9 +31,6 @@ except:
         "transformers",
         "sacremoses",
     ]
-
-
-
 
 if __name__ == '__main__':
     setup(

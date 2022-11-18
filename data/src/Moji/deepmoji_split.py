@@ -10,9 +10,10 @@ Options:
 Script for converting the encoded deep_moji encoded vectors into train/dev/test splits
 """
 
-import numpy as np
 # from docopt import docopt
 import os
+
+import numpy as np
 
 
 def read_data_file(input_file: str):

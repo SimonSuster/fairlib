@@ -1,8 +1,10 @@
 import os
+
 import requests
 from tqdm.auto import tqdm
 
-def download(url: str, dest_folder: str, chunk_size: int = 10*1024*1024):
+
+def download(url: str, dest_folder: str, chunk_size: int = 10 * 1024 * 1024):
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)  # create folder if it does not exist
 
@@ -18,7 +20,7 @@ def download(url: str, dest_folder: str, chunk_size: int = 10*1024*1024):
     if r.ok:
         print("saving to", os.path.abspath(file_path))
         with open(file_path, 'wb') as f:
-            for chunk in tqdm(r.iter_content(chunk_size=chunk_size), total=(total_length//chunk_size)+1):
+            for chunk in tqdm(r.iter_content(chunk_size=chunk_size), total=(total_length // chunk_size) + 1):
                 if chunk:
                     f.write(chunk)
                     f.flush()

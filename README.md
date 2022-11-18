@@ -1,18 +1,24 @@
 # *fairlib*
 
+[*fairlib*](https://github.com/HanXudong/fairlib) is a Python framework for assessing and improving fairness. Built-in
+algorithms can be applied to text inputs, structured inputs, and image inputs.
 
-[*fairlib*](https://github.com/HanXudong/fairlib) is a Python framework for assessing and improving fairness. Built-in algorithms can be applied to text inputs, structured inputs, and image inputs.  
+The *fairlib* package includes metrics for fairness
+evaluation, [algorithms for bias mitigation](https://hanxudong.github.io/fairlib/supported_bias_mitigation_algorithms.html)
+, and functions for analysis.
 
-The *fairlib* package includes metrics for fairness evaluation, [algorithms for bias mitigation](https://hanxudong.github.io/fairlib/supported_bias_mitigation_algorithms.html), and functions for analysis.
-
-For those who want to start with *fairlib* now, you can try our [Colab Tutorial](https://colab.research.google.com/github/HanXudong/fairlib/blob/main/tutorial/fairlib_demo.ipynb), which provides a gentle introduction to the concepts and capabilities. 
-[The tutorials and other notebooks](https://hanxudong.github.io/fairlib/tutorial_interactive_demos.html) offer a deeper introduction. The [complete API](https://hanxudong.github.io/fairlib) is also available.
+For those who want to start with *fairlib* now, you can try
+our [Colab Tutorial](https://colab.research.google.com/github/HanXudong/fairlib/blob/main/tutorial/fairlib_demo.ipynb),
+which provides a gentle introduction to the concepts and capabilities.
+[The tutorials and other notebooks](https://hanxudong.github.io/fairlib/tutorial_interactive_demos.html) offer a deeper
+introduction. The [complete API](https://hanxudong.github.io/fairlib) is also available.
 
 ## Installation
 
-*fairlib* currently requires Python3.7+ and [Pytorch](https://pytorch.org) 1.10 or higher.
-Dependencies of the core modules are listed in [`requirements.txt`](https://github.com/HanXudong/fairlib/blob/main/requirements.txt). 
-We *strongly* recommend using a [venv](https://docs.python.org/3/library/venv.html) or [conda](https://www.anaconda.com/) environment for installation.
+*fairlib* currently requires Python3.7+ and [Pytorch](https://pytorch.org) 1.10 or higher. Dependencies of the core
+modules are listed in [`requirements.txt`](https://github.com/HanXudong/fairlib/blob/main/requirements.txt). We *
+strongly* recommend using a [venv](https://docs.python.org/3/library/venv.html) or [conda](https://www.anaconda.com/)
+environment for installation.
 
 **Standard Installation**
 
@@ -37,13 +43,16 @@ cd ~/fairlib
 python setup.py develop
 ```
 
-**Benchmark Datasets**  
+**Benchmark Datasets**
 
-Please refer to [data/README.md](https://github.com/HanXudong/fairlib/blob/main/data/README.md) for a list of fairness benchmark datasets.
+Please refer to [data/README.md](https://github.com/HanXudong/fairlib/blob/main/data/README.md) for a list of fairness
+benchmark datasets.
 
 ## Usage
 
-The full description of *fairlib* usages can be found in [*fairlib* cheat sheet](https://hanxudong.github.io/fairlib/tutorial_usage.html) and API reference. Here are the most basic examples.
+The full description of *fairlib* usages can be found in [*
+fairlib* cheat sheet](https://hanxudong.github.io/fairlib/tutorial_usage.html) and API reference. Here are the most
+basic examples.
 
 - *fairlib* can be run from the command line:
   ```bash
@@ -68,19 +77,22 @@ The full description of *fairlib* usages can be found in [*fairlib* cheat sheet]
 
 ## Model Selection and Fairness Evaluation
 
-Besides the classical loss- and performance-based model selection, we provide performance-fairness trade-off based model selection (see the paper below). 
+Besides the classical loss- and performance-based model selection, we provide performance-fairness trade-off based model
+selection (see the paper below).
 
-Please see [this tutorial](https://hanxudong.github.io/fairlib/tutorial_notebooks/tutorial_Moji_demo.html) for an example of loading training history, performing model selections based on different strategies, and creating basic plots.
-Moreover, [interactive plots](https://hanxudong.github.io/fairlib/tutorial_notebooks/tutorial_interactive_plots.html) are also supported, which can be used for analysis.
+Please see [this tutorial](https://hanxudong.github.io/fairlib/tutorial_notebooks/tutorial_Moji_demo.html) for an
+example of loading training history, performing model selections based on different strategies, and creating basic
+plots.
+Moreover, [interactive plots](https://hanxudong.github.io/fairlib/tutorial_notebooks/tutorial_interactive_plots.html)
+are also supported, which can be used for analysis.
 
 ## Known issues and limitations
 
 None are known at this time.
 
-
 ## Getting help
 
-If you have any problem with our code or have some suggestions, including the future feature, feel free to contact 
+If you have any problem with our code or have some suggestions, including the future feature, feel free to contact
 
 - Xudong Han (xudongh1@student.unimelb.edu.au)
 
@@ -91,6 +103,7 @@ or describe it in Issues.
 [fairlib: A Unified Framework for Assessing and Improving Classification Fairness](https://arxiv.org/abs/2205.01876)
 
 Cite Us
+
 ```
 @article{han2022fairlib,
   title={fairlib: A Unified Framework for Assessing and Improving Classification Fairness},
@@ -100,15 +113,17 @@ Cite Us
 }
 ```
 
-
 ## Contributing
 
-We appreciate all contributions. If you are planning to contribute back bug-fixes, please do so without any further discussion. If you plan to contribute new features, utility functions or extensions, please first open an issue and discuss the feature with us.
-
+We appreciate all contributions. If you are planning to contribute back bug-fixes, please do so without any further
+discussion. If you plan to contribute new features, utility functions or extensions, please first open an issue and
+discuss the feature with us.
 
 ## License
 
-This project is distributed under the terms of the [APACHE LICENSE, VERSION 2.0](https://www.apache.org/licenses/LICENSE-2.0).  The license applies to all files in the [GitHub repository](http://github.com/HanXudong/fairlib) hosting this file.
+This project is distributed under the terms of
+the [APACHE LICENSE, VERSION 2.0](https://www.apache.org/licenses/LICENSE-2.0). The license applies to all files in
+the [GitHub repository](http://github.com/HanXudong/fairlib) hosting this file.
 
 ## Acknowledgments
 

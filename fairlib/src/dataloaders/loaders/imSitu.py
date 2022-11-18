@@ -1,14 +1,14 @@
-import numpy as np
-from ..utils import BaseDataset
-from pathlib import Path
-import pandas as pd
 import os
+
+import numpy as np
+import pandas as pd
+
+from ..utils import BaseDataset
 
 
 class imSituDataset(BaseDataset):
 
     def load_data(self):
-
         self.data_dir = os.path.join(self.args.data_dir, "imsitu_{}_df.pkl".format(self.split))
 
         data = pd.read_pickle(self.data_dir)

@@ -2,9 +2,13 @@
 
 ## Step 1. Implement the dataset class
 
-A custom dataset class must implement the `load_data` function. Take a look at this sample implementation; the split is stored in a directory `self.data_dir`, which is determined by the `args.data_dir` and `split`. `args.data_dir` is either loaded from the arguments `--data_dir` or from the default value, which will be introduced into details later. While `split` has three possible string values, `{"train", "dev", "test"}`, indicating the split that will be loaded.
+A custom dataset class must implement the `load_data` function. Take a look at this sample implementation; the split is
+stored in a directory `self.data_dir`, which is determined by the `args.data_dir` and `split`. `args.data_dir` is either
+loaded from the arguments `--data_dir` or from the default value, which will be introduced into details later.
+While `split` has three possible string values, `{"train", "dev", "test"}`, indicating the split that will be loaded.
 
-Then the `load_data` function must assign the value of `self.X` as inputs, `self.y` as target labels, and `self.protected_label` as the information for debiasing, such as gender, age, and race.
+Then the `load_data` function must assign the value of `self.X` as inputs, `self.y` as target labels,
+and `self.protected_label` as the information for debiasing, such as gender, age, and race.
 
 ```python
 from fairlib.dataloaders.utils import BaseDataset
@@ -27,13 +31,17 @@ class SampleDataset(BaseDataset):
 
 For more example, please take a look at `fairlib/src/dataloader/loaders.py`.
 
-Debiasing methods such as instance reweighting will be automatically applied to the loaded dataset, which is implemented in `fairlib.src.dataloaders.utils.BaseDataset`.
+Debiasing methods such as instance reweighting will be automatically applied to the loaded dataset, which is implemented
+in `fairlib.src.dataloaders.utils.BaseDataset`.
 
 ## Step 2. Register the dataset
 
 - `default_dataset_roots`
 
-To avoid identifying the data root every time, we could predefine the default root the our dataset. we just need to add the path to the dictionary `default_dataset_roots` in `fairlib/src/dataloaders/__init__.py`. Take a look at the following example.
+To avoid identifying the data root every time, we could predefine the default root the our dataset. we just need to add
+the path to the dictionary `default_dataset_roots` in `fairlib/src/dataloaders/__init__.py`. Take a look at the
+following example.
+
 ```python
     default_dataset_roots = dict(
         Moji='/data/deepmoji/split2/',
@@ -43,7 +51,8 @@ To avoid identifying the data root every time, we could predefine the default ro
 ```
 
 - `get_dataloaders`
-New, we need to register the dataset class for later use. Specially, all we need to do is adding an extra else if statement for the new dataset.
+  New, we need to register the dataset class for later use. Specially, all we need to do is adding an extra else if
+  statement for the new dataset.
 
 ```python
 

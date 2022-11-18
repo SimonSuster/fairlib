@@ -1,7 +1,9 @@
-import numpy as np
 from collections import Counter
-from random import shuffle
 from random import choices
+from random import shuffle
+
+import numpy as np
+
 
 def get_weights(BTObj, y, protected_label):
     """Given the balanced training objective, target labels, and protected labels, pre-calculate weights for each instance.
@@ -18,7 +20,7 @@ def get_weights(BTObj, y, protected_label):
 
     n_total = len(y)
     if BTObj in ["joint", "stratified_y", "stratified_g", "EO"]:
-        weighting_counter = Counter([(i,j) for i,j in zip(y, protected_label)])
+        weighting_counter = Counter([(i, j) for i, j in zip(y, protected_label)])
     elif BTObj == "y":
         weighting_counter = Counter(y)
     elif BTObj == "g":
@@ -32,7 +34,7 @@ def get_weights(BTObj, y, protected_label):
             weighting_counter[k] = n_perfect_balanced / weighting_counter[k]
     elif BTObj == "EO":
         for k in weighting_counter.keys():
-            _y, _g = k                    
+            _y, _g = k
             groups_with_same_y = [_k for _k in weighting_counter.keys() if _k[0] == _y]
             num_y = sum([weighting_counter[_k] for _k in groups_with_same_y])
             weighting_counter[k] = num_y / weighting_counter[k]
@@ -66,7 +68,8 @@ def get_weights(BTObj, y, protected_label):
 
     return instance_weights
 
-def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
+
+def get_sampled_indices(BTObj, y, protected_label, method="Downsampling"):
     """Given the balanced training objective, target labels, and protected labels, sampling instances for each group.
 
     Args:
@@ -82,7 +85,7 @@ def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
     # init a dict for storing the index of each group.
     group_idx = {}
     if BTObj in ["joint", "stratified_y", "stratified_g", "EO"]:
-        group_labels = [(i,j) for i,j in zip(y, protected_label)]
+        group_labels = [(i, j) for i, j in zip(y, protected_label)]
     elif BTObj == "y":
         group_labels = y
     elif BTObj == "g":
@@ -121,7 +124,7 @@ def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
                 selected = sum([len(group_idx.get((y, _g))) for _g in distinct_g_label]) / len(distinct_g_label)
 
             for g in distinct_g_label:
-                _index = group_idx.get((y,g), [])
+                _index = group_idx.get((y, g), [])
                 if method == "Downsampling":
                     shuffle(_index)
                     selected_index = selected_index + _index[:selected]
@@ -133,7 +136,7 @@ def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
         weighting_counter = Counter(y)
 
         # a list of (weights, actual length)
-        condidate_selected = min([len(group_idx[(_y, _g)])/weighting_counter[_y] for (_y, _g) in group_idx.keys()])
+        condidate_selected = min([len(group_idx[(_y, _g)]) / weighting_counter[_y] for (_y, _g) in group_idx.keys()])
 
         distinct_y_label = set(y)
         distinct_g_label = set(protected_label)
@@ -145,7 +148,7 @@ def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
             elif method == "Resampling":
                 selected = int(weighting_counter[y] / len(distinct_g_label))
             for g in distinct_g_label:
-                _index = group_idx.get((y,g), [])
+                _index = group_idx.get((y, g), [])
                 if method == "Downsampling":
                     shuffle(_index)
                     selected_index = selected_index + _index[:selected]
@@ -157,7 +160,7 @@ def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
         weighting_counter = Counter(protected_label)
         # a list of (weights, actual length)
         # Noticing that if stratified_g, the order within the key has been changed.
-        condidate_selected = min([len(group_idx[(_y, _g)])/weighting_counter[_g] for (_y, _g) in group_idx.keys()])
+        condidate_selected = min([len(group_idx[(_y, _g)]) / weighting_counter[_g] for (_y, _g) in group_idx.keys()])
 
         distinct_y_label = set(y)
         distinct_g_label = set(protected_label)
@@ -171,7 +174,7 @@ def get_sampled_indices(BTObj, y, protected_label, method = "Downsampling"):
                 selected = int(weighting_counter[g] / len(distinct_y_label))
             # for g in distinct_g_label:
             for y in distinct_y_label:
-                _index = group_idx.get((y,g), [])
+                _index = group_idx.get((y, g), [])
                 if method == "Downsampling":
                     shuffle(_index)
                     selected_index = selected_index + _index[:selected]

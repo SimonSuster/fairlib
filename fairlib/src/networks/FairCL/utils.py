@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+
 
 class Contrastive_Loss(torch.nn.Module):
     """
@@ -27,28 +27,28 @@ class Contrastive_Loss(torch.nn.Module):
         anchor_feature = contrast_feature
         anchor_count = contrast_count
 
-        #compute_logits
+        # compute_logits
         anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
-        
-        #for numerical stability
+
+        # for numerical stability
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast-logits_max.detach()
-        
-        #tile mask
+        logits = anchor_dot_contrast - logits_max.detach()
+
+        # tile mask
         mask = mask.repeat(anchor_count, contrast_count)
-        #mask out self-contrast cases
-        logits_mask = torch.scatter(torch.ones_like(mask), 1, torch.arange(batch_size*anchor_count).view(-1, 1).to(self.device), 0)
-        
-        mask = mask*logits_mask
+        # mask out self-contrast cases
+        logits_mask = torch.scatter(torch.ones_like(mask), 1,
+                                    torch.arange(batch_size * anchor_count).view(-1, 1).to(self.device), 0)
 
-        #compute log prob
-        exp_logits = torch.exp(logits)*logits_mask+1e-20
+        mask = mask * logits_mask
 
-        
-        log_prob = logits-torch.log(exp_logits.sum(1, keepdim=True))
+        # compute log prob
+        exp_logits = torch.exp(logits) * logits_mask + 1e-20
 
-        #compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask*log_prob).sum(1)/(1+mask.sum(1))
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+
+        # compute mean of log-likelihood over positive
+        mean_log_prob_pos = (mask * log_prob).sum(1) / (1 + mask.sum(1))
 
         loss = -mean_log_prob_pos
         loss = loss.mean()

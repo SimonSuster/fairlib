@@ -1,8 +1,10 @@
 import numpy as np
-import torch
 import pandas as pd
+import torch
+
 from .BT import get_weights, get_sampled_indices
 from .generalized_BT import get_data_distribution, manipulate_data_distribution
+
 
 def full_label_data(df, tasks):
     """filter the instances with all required labels
@@ -14,10 +16,11 @@ def full_label_data(df, tasks):
     Returns:
         np.array: an array of boolean values indicating whether or not each row meets the requirement.
     """
-    selected_rows = np.array([True]*len(df))
+    selected_rows = np.array([True] * len(df))
     for task in tasks:
         selected_rows = selected_rows & df[task].notnull().to_numpy()
     return selected_rows
+
 
 class BaseDataset(torch.utils.data.Dataset):
     def __init__(self, args, split):
@@ -51,8 +54,9 @@ class BaseDataset(torch.utils.data.Dataset):
         if self.split == "train":
             self.adv_decoupling()
 
-
-        print("Loaded data shapes: {}, {}, {}".format(self.X.shape if self.args.encoder_architecture != "EvidenceGRADEr" else len(self.X), self.y.shape, self.protected_label.shape))
+        print("Loaded data shapes: {}, {}, {}".format(
+            self.X.shape if self.args.encoder_architecture != "EvidenceGRADEr" else len(self.X), self.y.shape,
+            self.protected_label.shape))
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -60,8 +64,9 @@ class BaseDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         'Generates one sample of data'
-        return self.X[index], self.y[index], self.protected_label[index], self.instance_weights[index], self.adv_instance_weights[index], self.regression_label[index]
-    
+        return self.X[index], self.y[index], self.protected_label[index], self.instance_weights[index], \
+               self.adv_instance_weights[index], self.regression_label[index]
+
     def load_data(self):
         pass
 
@@ -71,10 +76,10 @@ class BaseDataset(torch.utils.data.Dataset):
             distribution_dict = get_data_distribution(y_data=self.y, g_data=self.protected_label)
 
             selected_index = manipulate_data_distribution(
-                default_distribution_dict = distribution_dict, 
-                N = self.args.GBT_N, 
-                GBTObj = self.args.GBTObj, 
-                alpha = self.args.GBT_alpha)
+                default_distribution_dict=distribution_dict,
+                N=self.args.GBT_N,
+                GBTObj=self.args.GBTObj,
+                alpha=self.args.GBT_alpha)
 
             self.X = self.X[selected_index]
             self.y = self.y[selected_index]
@@ -103,7 +108,7 @@ class BaseDataset(torch.utils.data.Dataset):
 
             elif self.args.BT in ["Resampling", "Downsampling"]:
 
-                selected_index = get_sampled_indices(self.args.BTObj, self.y, self.protected_label, method = self.args.BT)
+                selected_index = get_sampled_indices(self.args.BTObj, self.y, self.protected_label, method=self.args.BT)
 
                 X = [self.X[index] for index in selected_index]
                 self.X = np.array(X)
@@ -160,11 +165,12 @@ class BaseDataset(torch.utils.data.Dataset):
         else:
             # Discretize variable into equal-sized buckets
             if self.split == "train":
-                bin_labels, bins = pd.qcut(self.y, q=self.args.n_bins, labels=False, duplicates = "drop", retbins = True)
+                bin_labels, bins = pd.qcut(self.y, q=self.args.n_bins, labels=False, duplicates="drop", retbins=True)
                 self.args.regression_bins = bins
             else:
-                bin_labels = pd.cut(self.y, bins=self.args.regression_bins, labels=False, duplicates = "drop", include_lowest = True)
+                bin_labels = pd.cut(self.y, bins=self.args.regression_bins, labels=False, duplicates="drop",
+                                    include_lowest=True)
             bin_labels = np.nan_to_num(bin_labels, nan=0)
-            
+
             # Reassign labels
             self.regression_label, self.y = np.array(self.y), bin_labels

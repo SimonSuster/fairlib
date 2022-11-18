@@ -1,8 +1,10 @@
-import numpy as np
-from ..utils import BaseDataset
-from pathlib import Path
-import pandas as pd
 import os
+
+import numpy as np
+import pandas as pd
+
+from ..utils import BaseDataset
+
 
 class COMPASDataset(BaseDataset):
 
@@ -16,6 +18,6 @@ class COMPASDataset(BaseDataset):
         self.y = list(data["is_recid"])
 
         if self.args.protected_task == "gender":
-            self.protected_label =np.array(list(data["sex"])).astype(np.int32) # Gender
+            self.protected_label = np.array(list(data["sex"])).astype(np.int32)  # Gender
         elif self.args.protected_task == "race":
-            self.protected_label = np.array(list(data["race"])).astype(np.int32) # Race
+            self.protected_label = np.array(list(data["race"])).astype(np.int32)  # Race

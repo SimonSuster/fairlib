@@ -1,16 +1,12 @@
-import sys
-import torch
-import logging
-from .classifier import MLP, BERTClassifier, ConvNet, EvidenceGRADEr
-from . import utils
-from . import INLP
-from . import FairCL
 from . import DyBT
+from . import FairCL
+from . import INLP
 from . import adv
-from collections import defaultdict
+from . import utils
+from .classifier import MLP, BERTClassifier, ConvNet, EvidenceGRADEr
+
 
 def get_main_model(args):
-
     if args.encoder_architecture == "Fixed":
         model = MLP(args)
     elif args.encoder_architecture == "BERT":
@@ -21,5 +17,5 @@ def get_main_model(args):
         model = EvidenceGRADEr(args)
     else:
         raise NotImplementedError
-    
+
     return model

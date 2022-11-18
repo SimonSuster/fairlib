@@ -1,8 +1,8 @@
-import torch
 import logging
-from torch.optim import Adam
-import time
 from pathlib import Path
+
+import torch
+
 
 def print_network(net, verbose=False):
     """print the NN architecture and number of parameters
@@ -20,10 +20,10 @@ def print_network(net, verbose=False):
 
 
 def save_checkpoint(
-    epoch, epochs_since_improvement, model, loss, dev_evaluations,
-    valid_confusion_matrices, test_confusion_matrices,
-    test_evaluations, is_best, checkpoint_dir, prefix = "checkpoint",
-    dev_predictions=None, test_predictions=None):
+        epoch, epochs_since_improvement, model, loss, dev_evaluations,
+        valid_confusion_matrices, test_confusion_matrices,
+        test_evaluations, is_best, checkpoint_dir, prefix="checkpoint",
+        dev_predictions=None, test_predictions=None):
     """save check points to a specified file.
 
     Args:
@@ -49,11 +49,11 @@ def save_checkpoint(
         'loss': loss,
         # 'dev_predictions': dev_predictions,
         # 'test_predictions': test_predictions,
-        "valid_confusion_matrices" : valid_confusion_matrices,
-        "test_confusion_matrices" : test_confusion_matrices,
+        "valid_confusion_matrices": valid_confusion_matrices,
+        "test_confusion_matrices": test_confusion_matrices,
         'dev_evaluations': dev_evaluations,
         'test_evaluations': test_evaluations
-        }
+    }
 
     if dev_predictions is not None:
         _state["dev_predictions"] = dev_predictions
@@ -64,5 +64,5 @@ def save_checkpoint(
     torch.save(_state, Path(checkpoint_dir) / filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
-        _state["model"]=model.state_dict()
+        _state["model"] = model.state_dict()
         torch.save(_state, Path(checkpoint_dir) / 'BEST_checkpoint.pth.tar')

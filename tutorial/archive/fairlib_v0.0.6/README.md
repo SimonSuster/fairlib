@@ -1,7 +1,8 @@
 # Tutorial
 
 - `demo.ipynb`  
-  This notebook shows the base usage of our library, including installation, data preparation, model training, debiasing, and analysis.
+  This notebook shows the base usage of our library, including installation, data preparation, model training,
+  debiasing, and analysis.
 - `colored_MNIST.ipynb`
   This notebook demonstrates customizing models and datasets over an image classification task.
 - `COMPAS.ipynb`

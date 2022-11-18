@@ -1,2 +1,2 @@
-from .utils import *
 from . import logging
+from .utils import *

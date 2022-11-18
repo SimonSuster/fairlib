@@ -1,8 +1,8 @@
 import numpy as np
 import torch
-from transformers import *
-import pickle
 from tqdm.auto import tqdm, trange
+from transformers import *
+
 
 class BERT_encoder:
     def __init__(self, batch_size=64) -> None:
@@ -13,7 +13,6 @@ class BERT_encoder:
 
         self.model = self.model.to(self.device)
 
-    
     def load_lm(self):
         model_class, tokenizer_class, pretrained_weights = (BertModel, BertTokenizer, 'bert-base-uncased')
         tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
@@ -26,8 +25,10 @@ class BERT_encoder:
         total_n = len(data)
         n_iterations = (total_n // self.batch_size) + (total_n % self.batch_size > 0)
         for i in trange(n_iterations):
-            row_lists = list(data)[i*self.batch_size:(i+1)*self.batch_size]
-            tokens = self.tokenizer(row_lists, add_special_tokens=True, padding=True, truncation=True, return_tensors="pt")['input_ids']
+            row_lists = list(data)[i * self.batch_size:(i + 1) * self.batch_size]
+            tokens = \
+            self.tokenizer(row_lists, add_special_tokens=True, padding=True, truncation=True, return_tensors="pt")[
+                'input_ids']
             tokenized_data.append(tokens)
         return tokenized_data
 
@@ -39,10 +40,9 @@ class BERT_encoder:
                 input_ids = row.to(self.device)
                 last_hidden_states = self.model(input_ids)[0].detach().cpu()
                 all_data_avg.append(last_hidden_states.mean(dim=1).numpy())
-                all_data_cls.append(last_hidden_states[:,0].numpy())
+                all_data_cls.append(last_hidden_states[:, 0].numpy())
                 input_ids = input_ids.detach().cpu()
         return np.vstack(np.array(all_data_avg)), np.vstack(np.array(all_data_cls))
-
 
     def encode(self, data):
         tokens = self.tokenize(data)

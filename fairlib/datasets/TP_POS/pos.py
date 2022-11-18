@@ -1,11 +1,8 @@
-from fairlib.datasets.utils.download import download
-from fairlib.src.utils import seed_everything
-import numpy as np
-import pandas as pd
-import os
 from pathlib import Path
-from sklearn.model_selection import train_test_split
 
+import numpy as np
+
+from fairlib.datasets.utils.download import download
 
 data_source = "https://bitbucket.org/lowlands/release/raw/HEAD/ACL2015/tagging_age/data/en/{}"
 
@@ -22,12 +19,12 @@ filenames = [
     "en.U35-UKH2_SOSO-M.data.TT.tagged.gold",
     "en.U35-UKN0_BEST-F.data.TT.tagged.gold",
     "en.U35-UKN0_BEST-M.data.TT.tagged.gold"
-    ]
+]
 
 
-def load_web_eng(filename = ""):
-    lines = list( open(filename, "r", encoding='utf8').readlines() )
-    lines = [ l.strip() for l in lines]
+def load_web_eng(filename=""):
+    lines = list(open(filename, "r", encoding='utf8').readlines())
+    lines = [l.strip() for l in lines]
 
     doc = []
     tags = []
@@ -42,9 +39,10 @@ def load_web_eng(filename = ""):
         else:
             w, t = l.split('\t')
             if t != "-NONE-":
-                sent_w.append( w.lower() )
-                sent_t.append( t )
+                sent_w.append(w.lower())
+                sent_t.append(t)
     return doc, tags
+
 
 def load_trustpilots(dataset_path):
     all_sents = []
@@ -53,14 +51,14 @@ def load_trustpilots(dataset_path):
     all_ages = []
     for i, filename in enumerate(filenames):
         sents, tags = load_web_eng(Path(dataset_path) / filename)
-        if i < 6: 
-            ages = np.array( [1] * len(sents) ) #over 45
+        if i < 6:
+            ages = np.array([1] * len(sents))  # over 45
         else:
-            ages = np.array( [0] * len(sents) ) #under 35
+            ages = np.array([0] * len(sents))  # under 35
         if i % 2 == 0:
-            genders = np.array( [1] * len(sents) ) # F
+            genders = np.array([1] * len(sents))  # F
         else:
-            genders = np.array( [0] * len(sents) ) # M
+            genders = np.array([0] * len(sents))  # M
 
         all_sents.extend(sents)
         all_tags.extend(tags)
@@ -68,8 +66,8 @@ def load_trustpilots(dataset_path):
         all_ages.extend(ages)
     return all_sents, all_tags, np.array(all_genders), np.array(all_ages)
 
-class POS:
 
+class POS:
     _NAME = "TP_POS"
     _SPLITS = ["train", "dev", "test"]
 
@@ -81,20 +79,20 @@ class POS:
 
         for filename in filenames:
             download(
-                    url= data_source.format(filename), 
-                    dest_folder = self.dest_folder
-                    )
+                url=data_source.format(filename),
+                dest_folder=self.dest_folder
+            )
 
     def processing(self):
         TP_sents, TP_tags, TP_gender, TP_age = load_trustpilots(self.dest_folder)
 
         total_array = []
         for i in range(len(TP_sents)):
-            total_array.append({'text':TP_sents[i], 
-                                'tag_label':TP_tags[i], 
-                                'age_label':int(TP_age[i]),
-                                'gender_label':int(TP_gender[i])
-                            })
+            total_array.append({'text': TP_sents[i],
+                                'tag_label': TP_tags[i],
+                                'age_label': int(TP_age[i]),
+                                'gender_label': int(TP_gender[i])
+                                })
 
         from sklearn.model_selection import train_test_split
 
