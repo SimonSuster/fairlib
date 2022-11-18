@@ -18,11 +18,11 @@ TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", 
            "Rheumatology", "Skin disorders", "Tobacco, drugs & alcohol", "Urology", "Wounds"]
 PROTECTED_LABEL_MAP = dict(zip(TOPICS, list(range(len(TOPICS)))))
 
-def get_params(data_dir, param_file= "/home/simon/Apps/SysRev/sysrev/modelling/allennlp/training_config/bi_class2_nonaugm_all.jsonnet"):
+def get_params(data_dir, fold_n, param_file= "/home/simon/Apps/SysRev/sysrev/modelling/allennlp/training_config/bi_class2_nonaugm_all.jsonnet"):
     params = Params.from_file(param_file)
-    params["train_data_path"] = f"{data_dir}/train.csv"
-    params["validation_data_path"] = f"{data_dir}/dev.csv"
-    params["test_data_path"] = f"{data_dir}/test.csv"
+    params["train_data_path"] = f"{data_dir}/{fold_n}/train.csv"
+    params["validation_data_path"] = f"{data_dir}/{fold_n}/dev.csv"
+    params["test_data_path"] = f"{data_dir}/{fold_n}/test.csv"
     params["dataset_reader"][
         "serialization_dir"] = f"/home/simon/Apps/SysRevData/data/modelling/saved/{Path(param_file).stem}/"
     if not Path(params["dataset_reader"]["serialization_dir"]).exists():
@@ -33,6 +33,16 @@ def get_params(data_dir, param_file= "/home/simon/Apps/SysRev/sysrev/modelling/a
     return params
 
 
+def get_dataset_reader(data_dir, fold_n, param_file):
+    # read experiment params from EvidenceGRADEr allennlp config file:
+    params = get_params(data_dir, fold_n, param_file=param_file)
+
+    # instantiate a data reader
+    dataset_reader = DatasetReader.from_params(params["dataset_reader"])
+
+    return dataset_reader
+
+
 class EGBinaryGradeNum(BaseDataset):
     """
     Data reader for EvidenceGRADEr's binary grading task.
@@ -40,26 +50,38 @@ class EGBinaryGradeNum(BaseDataset):
     """
     def load_data(self):
         self.data_dir = self.args.data_dir
-        # read experiment params from EvidenceGRADEr allennlp config file:
-        params = get_params(self.data_dir, param_file="/home/simon/Apps/SysRev/sysrev/modelling/allennlp/training_config/bi_class2_nonaugm_all.jsonnet")
+        self.fold_n = self.args.fold_n
 
-        # instantiate a data reader
-        dataset_reader = DatasetReader.from_params(params["dataset_reader"])
-        data_path = f"{self.data_dir}{self.split}.csv"
+        dataset_reader = get_dataset_reader(self.data_dir, self.fold_n, param_file=self.args.param_file)
 
+        data_path = f"{self.data_dir}{self.fold_n}/{self.split}.csv"
         for c, i in enumerate(dataset_reader._read(data_path)):
-            #if c > 100:
-            #    break
+            if self.args.max_load is not None:
+                if c > self.args.max_load:
+                    break
             # when multiple topics exist, create one instance per each topic:
             protected_labels = i.fields["cat_feats_list"].field_list[CAT_TYPES.index("topics")].tokens
+            n_cat_types = len(CAT_TYPES)
             for protected_label in protected_labels:
                 p_label = PROTECTED_LABEL_MAP.get(protected_label.text.replace("_", " "), None)
                 if p_label is None:
                     continue
                 self.protected_label.append(p_label)
-                self.X.append(i.fields["feat"].array)
-                self.y.append(LABEL_MAP[i.fields["label"].label])
 
-        # data_loader = MultiProcessDataLoader(reader=dataset_reader, data_path=data_path, batch_size=params["data_loader"]["batch_size"], shuffle=params["data_loader"]["shuffle"])
+                # erase protected label from the features
+                assert CAT_TYPES[-1] == "topics"
+                assert len(i.fields["cat_feats_list"].field_list) == n_cat_types
+                i.fields["cat_feats_list"].field_list[-1].tokens = []
+
+                #cat_feats_list = i.fields["cat_feats_list"].field_list[:-1]
+                #cat_feats_list = self.args.text_indexer.index(cat_feats_list)
+                #text_feats_list = self.args.text_indexer.index(i.fields["text_list"])
+                #self.X.append(
+                #    (i.fields["feat"].array,
+                #    text_feats_list,
+                #    cat_feats_list)
+                #    )
+                self.X.append(i)
+                self.y.append(LABEL_MAP[i.fields["label"].label])
 
         print()

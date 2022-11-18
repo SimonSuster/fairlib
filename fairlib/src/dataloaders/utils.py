@@ -34,10 +34,11 @@ class BaseDataset(torch.utils.data.Dataset):
         self.load_data()
 
         self.regression_init()
-        
-        self.X = np.array(self.X)
-        if len(self.X.shape) == 3:
-            self.X = np.concatenate(list(self.X), axis=0)
+
+        if self.args.encoder_architecture != "EvidenceGRADEr":
+            self.X = np.array(self.X)
+            if len(self.X.shape) == 3:
+                self.X = np.concatenate(list(self.X), axis=0)
         self.y = np.array(self.y).astype(int)
         self.protected_label = np.array(self.protected_label).astype(int)
 
@@ -51,7 +52,7 @@ class BaseDataset(torch.utils.data.Dataset):
             self.adv_decoupling()
 
 
-        print("Loaded data shapes: {}, {}, {}".format(self.X.shape, self.y.shape, self.protected_label.shape))
+        print("Loaded data shapes: {}, {}, {}".format(self.X.shape if self.args.encoder_architecture != "EvidenceGRADEr" else len(self.X), self.y.shape, self.protected_label.shape))
 
     def __len__(self):
         'Denotes the total number of samples'
