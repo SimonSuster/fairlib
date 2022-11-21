@@ -272,6 +272,8 @@ class EvidenceGRADEr(Encoders, BaseModel):
         model_params["cat_feats_embedder"].params["token_embedders"]["cat_feats"][
             "num_embeddings"] = self.vocab.get_vocab_size()
         embedder = TextFieldEmbedder.from_params(model_params["embedder"])
+        embedder._modules['token_embedder_tokens'].transformer_model.encoder.gradient_checkpointing = True
+
         cat_feats_embedder = TextFieldEmbedder.from_params(model_params["cat_feats_embedder"])
 
         # get encoders
