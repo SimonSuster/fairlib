@@ -21,6 +21,8 @@ task = "bi_class2_nonaugm_all"
 data_dir = "/home/simon/Apps/SysRevData/data/derivations/all/splits/"
 serialization_dir = "/home/simon/Apps/SysRevData/data/modelling/saved/"
 fold_n = 0
+batch_size = 2
+lr = 2e-5
 args = {
     # The name of the dataset, corresponding dataloader will be used,
     "dataset": "EGBinaryGradeNum",
@@ -41,8 +43,12 @@ args = {
     # "emb_size": len(NUM_TYPES),
     "emb_size": 3232,
     "n_hidden": 1,  # although in original EG, n_hidden=0, some de-biasing methods require n_hidden>0
-    # "max_load": 10,
-    "batch_size": 2,
+    "max_load": 5,
+    "batch_size": batch_size,
+    "test_batch_size": batch_size,
+    "lr": lr,
+    "epochs": 3,
+    "epochs_since_improvement": 1,
     "group_agg_power": 2
 }
 
