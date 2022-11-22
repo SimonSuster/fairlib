@@ -45,8 +45,8 @@ def train_epoch(model, iterator, args, epoch):
             batch = prepare_batch(batch)
 
         text = batch[0]  # variable name really just for conformity with fairlib; text actually holds num+cat+txt feats
-        tags = batch[1].long().squeeze()
-        p_tags = batch[2].float().squeeze()
+        tags = batch[1].long()
+        p_tags = batch[2].float()
 
         if args.BT is not None and args.BT == "Reweighting":
             instance_weights = batch[3].float()
@@ -376,9 +376,9 @@ class BaseModel(nn.Module):
 
         for batch in iterator:
 
-            text = batch[0].squeeze()
-            tags = batch[1].squeeze()
-            p_tags = batch[2].squeeze()
+            text = batch[0]
+            tags = batch[1]
+            p_tags = batch[2]
 
             labels += list(tags.cpu().numpy())
             private_labels += list(p_tags.cpu().numpy())
