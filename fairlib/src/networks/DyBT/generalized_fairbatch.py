@@ -61,11 +61,11 @@ class Generalized_FairBatch(BaseDyBT):
             for llg in larger_loss_group:
                 for tem_g in self.g_item:
                     self.lb_dict[(llg, tem_g)] += self.alpha / len(larger_loss_group) * (
-                                self.yg_len[(llg, tem_g)] / self.y_len[llg])
+                            self.yg_len[(llg, tem_g)] / self.y_len[llg])
             for slg in smaller_loss_group:
                 for tem_g in self.g_item:
                     self.lb_dict[(slg, tem_g)] -= self.alpha / len(smaller_loss_group) * (
-                                self.yg_len[(slg, tem_g)] / self.y_len[slg])
+                            self.yg_len[(slg, tem_g)] / self.y_len[slg])
 
             # Normalize to probability, i.e., between 0 and 1, and sum to 1
             all_lbs = [self.lb_dict[tmp_yg] for tmp_yg in self.yg_tuple]
@@ -87,11 +87,11 @@ class Generalized_FairBatch(BaseDyBT):
             for llg in larger_loss_group:
                 for tem_y in self.y_item:
                     self.lb_dict[(tem_y, llg)] += self.alpha / len(larger_loss_group) * (
-                                self.yg_len[(tem_y, llg)] / self.g_len[llg])
+                            self.yg_len[(tem_y, llg)] / self.g_len[llg])
             for slg in smaller_loss_group:
                 for tem_y in self.y_item:
                     self.lb_dict[(tem_y, slg)] -= self.alpha / len(smaller_loss_group) * (
-                                self.yg_len[(tem_y, slg)] / self.g_len[slg])
+                            self.yg_len[(tem_y, slg)] / self.g_len[slg])
 
             # Normalize to probability, i.e., between 0 and 1, and sum to 1
             all_lbs = [self.lb_dict[tmp_yg] for tmp_yg in self.yg_tuple]

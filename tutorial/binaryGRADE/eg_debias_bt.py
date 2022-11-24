@@ -1,7 +1,6 @@
 import sys
 
 from tutorial.binaryGRADE.eg_settings import args
-
 from tutorial.evidencegrader_demo import train
 
 

@@ -11,7 +11,8 @@ def train_debiasing_dybt():
         debiasing_args["exp_id"] = f"DyBTFairbatch"
         # Specify the hyperparameters for Balanced Training
         debiasing_args["DyBT"] = "FairBatch"
-        debiasing_args["DyBTObj"] = "stratified_y"  # https://github.com/HanXudong/Systematic_Evaluation_of_Predictive_Fairness/blob/main/src/gen_exps_dist.py
+        debiasing_args[
+            "DyBTObj"] = "stratified_y"  # https://github.com/HanXudong/Systematic_Evaluation_of_Predictive_Fairness/blob/main/src/gen_exps_dist.py
         debiasing_args["DyBTalpha"] = lambda_val
         # train debiasing model
         train(debiasing_args)

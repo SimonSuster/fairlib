@@ -81,7 +81,7 @@ class BaseDiscriminator(nn.Module):
             self.BN = None
 
         assert (self.args.adv_dropout >= 0) and (
-                    self.args.adv_dropout <= 1), "Probability must be in the range from 0 to 1"
+                self.args.adv_dropout <= 1), "Probability must be in the range from 0 to 1"
         if self.args.adv_dropout > 0:
             self.dropout = nn.Dropout(p=self.args.adv_dropout)
         else:

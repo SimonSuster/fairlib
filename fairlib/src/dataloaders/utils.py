@@ -55,8 +55,9 @@ class BaseDataset(torch.utils.data.Dataset):
             self.adv_decoupling()
 
         print("Loaded data shapes {}: {}, {}, {}".format(self.split,
-            self.X.shape if self.args.encoder_architecture != "EvidenceGRADEr" else len(self.X), self.y.shape,
-            self.protected_label.shape))
+                                                         self.X.shape if self.args.encoder_architecture != "EvidenceGRADEr" else len(
+                                                             self.X), self.y.shape,
+                                                         self.protected_label.shape))
 
     def __len__(self):
         'Denotes the total number of samples'

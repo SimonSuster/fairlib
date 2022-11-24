@@ -8,9 +8,9 @@ import torch
 
 def log_grid(start, stop, number_trials):
     assert stop >= start
-    step = (stop-start) / number_trials
+    step = (stop - start) / number_trials
     step_index = [i for i in range(number_trials + 1)]
-    return np.power(10, np.array([start+i*step for i in step_index]))
+    return np.power(10, np.array([start + i * step for i in step_index]))
 
 
 def seed_everything(seed):

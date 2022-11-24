@@ -191,14 +191,14 @@ def manipulate_data_distribution(default_distribution_dict, N=None, GBTObj="orig
     elif GBTObj == "g_cond_y":
         target_g_cond_y_dist = np.ones_like(default_distribution_dict["g_cond_y_dist"])
         target_g_cond_y_dist = target_g_cond_y_dist / (
-                    target_g_cond_y_dist.shape[1] * np.ones((1, target_g_cond_y_dist.shape[1])))
+                target_g_cond_y_dist.shape[1] * np.ones((1, target_g_cond_y_dist.shape[1])))
         target_g_cond_y_dist = target_g_cond_y_dist * alpha + (1 - alpha) * default_distribution_dict["g_cond_y_dist"]
         print(target_g_cond_y_dist)
         return generalized_sampling(default_distribution_dict, N, g_cond_y_dist=target_g_cond_y_dist)
     elif GBTObj == "y_cond_g":
         target_y_cond_g_dist = np.ones_like(default_distribution_dict["y_cond_g_dist"])
         target_y_cond_g_dist = target_y_cond_g_dist / (
-                    target_y_cond_g_dist.shape[0] * np.ones((target_y_cond_g_dist.shape[0], 1)))
+                target_y_cond_g_dist.shape[0] * np.ones((target_y_cond_g_dist.shape[0], 1)))
         target_y_cond_g_dist = target_y_cond_g_dist * alpha + (1 - alpha) * default_distribution_dict["y_cond_g_dist"]
         return generalized_sampling(default_distribution_dict, N, y_cond_g_dist=target_y_cond_g_dist)
     else:

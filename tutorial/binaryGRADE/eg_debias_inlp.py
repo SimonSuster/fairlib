@@ -1,6 +1,6 @@
-from tutorial.binaryGRADE.eg_settings import args
-from tutorial.evidencegrader_demo import train
 from fairlib.__main__ import main
+from tutorial.binaryGRADE.eg_settings import args
+
 
 def train_debiasing_inlp():
     # prepare debiasing args

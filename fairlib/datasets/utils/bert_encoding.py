@@ -27,8 +27,8 @@ class BERT_encoder:
         for i in trange(n_iterations):
             row_lists = list(data)[i * self.batch_size:(i + 1) * self.batch_size]
             tokens = \
-            self.tokenizer(row_lists, add_special_tokens=True, padding=True, truncation=True, return_tensors="pt")[
-                'input_ids']
+                self.tokenizer(row_lists, add_special_tokens=True, padding=True, truncation=True, return_tensors="pt")[
+                    'input_ids']
             tokenized_data.append(tokens)
         return tokenized_data
 

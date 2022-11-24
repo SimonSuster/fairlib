@@ -179,11 +179,11 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=
         if keep_original_metrics:
             for _dev_keys in epoch_result["dev_evaluations"].keys():
                 epoch_scores_dev[_dev_keys] = (
-                            epoch_scores_dev.get(_dev_keys, []) + [epoch_result["dev_evaluations"][_dev_keys]])
+                        epoch_scores_dev.get(_dev_keys, []) + [epoch_result["dev_evaluations"][_dev_keys]])
 
             for _test_keys in epoch_result["test_evaluations"].keys():
                 epoch_scores_test[_test_keys] = (
-                            epoch_scores_test.get(_test_keys, []) + [epoch_result["test_evaluations"][_test_keys]])
+                        epoch_scores_test.get(_test_keys, []) + [epoch_result["test_evaluations"][_test_keys]])
 
     # Calculate the DTO for dev and test 
     dev_DTO = DTO(fairness_metric=epoch_scores_dev["fairness"], performacne_metric=epoch_scores_dev["performance"])
@@ -362,9 +362,9 @@ def auc_performance_fairness_tradeoff(
 
         # Find the closest performed points to the threshold
         closest_worser_performed_point = \
-        sorted_results_df[sorted_results_df[performance_col_name] <= performance_threshold].values[0]
+            sorted_results_df[sorted_results_df[performance_col_name] <= performance_threshold].values[0]
         closest_better_performed_point = \
-        sorted_results_df[sorted_results_df[performance_col_name] >= performance_threshold].values[-1]
+            sorted_results_df[sorted_results_df[performance_col_name] >= performance_threshold].values[-1]
 
         # Interpolation
         assert interpolation in ["linear", "constant"]
