@@ -12,9 +12,9 @@ except:
     from src import networks
 
 
-def main():
+def main(args):
     options = BaseOptions()
-    state = options.get_state()
+    state = options.get_state(args=args, silence=True)
 
     # Init the model
     model = networks.get_main_model(state)

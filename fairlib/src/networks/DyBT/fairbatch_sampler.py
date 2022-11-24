@@ -3,8 +3,11 @@ import random
 
 import numpy as np
 import torch
+from allennlp.data.data_loaders import SimpleDataLoader
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
+
+from fairlib.src.dataloaders import get_vocab, name2loader, expand_x
 
 
 class FairBatch(Sampler):
@@ -42,12 +45,21 @@ class FairBatch(Sampler):
 
         self.args = args
 
-        train_dataset = args.train_generator.dataset
         eval_dataloader_params = {
             'batch_size': args.test_batch_size,
             'shuffle': False,
             'num_workers': args.num_workers}
-        self.data_iterator = torch.utils.data.DataLoader(train_dataset, **eval_dataloader_params)
+
+        if self.args.encoder_architecture == "EvidenceGRADEr":
+            vocab = get_vocab(args)
+            task_dataloader = name2loader(args)
+            train_data = task_dataloader(args=args, split="train")
+            expand_x(train_data)
+            del eval_dataloader_params["num_workers"]
+            self.data_iterator = SimpleDataLoader(train_data.X, vocab=vocab, **eval_dataloader_params)
+        else:
+            train_dataset = args.train_generator.dataset
+            self.data_iterator = torch.utils.data.DataLoader(train_dataset, **eval_dataloader_params)
 
         self.x_data = torch.from_numpy(train_dataset.X)
         self.y_data = torch.from_numpy(train_dataset.y)

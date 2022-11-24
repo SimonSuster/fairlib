@@ -297,6 +297,8 @@ class BaseModel(nn.Module):
 
         # Reinit the train loader for FairBatch
         if (self.args.DyBT is not None) and (self.args.DyBT in ["FairBatch", "GeneralizedFB"]):
+            if self.args.encoder_architecture == "EvidenceGRADEr":
+                raise NotImplementedError
             from .DyBT import init_sampler
             DyBT_sampler = init_sampler(self, self.args)
             # Replace the tran iterator with fairbatch version
@@ -375,6 +377,9 @@ class BaseModel(nn.Module):
             raise NotImplementedError
 
         for batch in iterator:
+            if self.args.encoder_architecture == "EvidenceGRADEr":
+                # redefine batch as a list for conformity with fairlib
+                batch = prepare_batch(batch)
 
             text = batch[0]
             tags = batch[1]

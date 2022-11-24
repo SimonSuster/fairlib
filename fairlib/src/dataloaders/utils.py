@@ -54,7 +54,7 @@ class BaseDataset(torch.utils.data.Dataset):
         if self.split == "train":
             self.adv_decoupling()
 
-        print("Loaded data shapes: {}, {}, {}".format(
+        print("Loaded data shapes {}: {}, {}, {}".format(self.split,
             self.X.shape if self.args.encoder_architecture != "EvidenceGRADEr" else len(self.X), self.y.shape,
             self.protected_label.shape))
 
@@ -111,7 +111,10 @@ class BaseDataset(torch.utils.data.Dataset):
                 selected_index = get_sampled_indices(self.args.BTObj, self.y, self.protected_label, method=self.args.BT)
 
                 X = [self.X[index] for index in selected_index]
-                self.X = np.array(X)
+                if self.args.encoder_architecture != "EvidenceGRADEr":
+                    self.X = np.array(X)
+                else:
+                    self.X = X
                 y = [self.y[index] for index in selected_index]
                 self.y = np.array(y)
                 _protected_label = [self.protected_label[index] for index in selected_index]
