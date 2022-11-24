@@ -26,11 +26,11 @@ def main(args):
 
     if state.INLP:
         logging.info('Run INLP')
-        from src.networks.INLP import get_INLP_trade_offs
+        from fairlib.src.networks.INLP import get_INLP_trade_offs
         get_INLP_trade_offs(model, state)
 
     logging.info('Finished!')
 
 
 if __name__ == '__main__':
-    main()
+    main(args={})
