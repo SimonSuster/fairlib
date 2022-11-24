@@ -7,6 +7,7 @@ def train_debiasing_inlp():
     debiasing_args = args.copy()
     # Update the experiment name
     debiasing_args["exp_id"] = f"INLP"
+    debiasing_args["INLP"] = True
     debiasing_args["INLP_n"] = 300
     debiasing_args["INLP_by_class"] = True
     debiasing_args["INLP_discriminator_reweighting"] = "balanced"
