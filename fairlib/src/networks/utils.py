@@ -136,19 +136,19 @@ def train_epoch(model, iterator, args, epoch):
             data_t, t = 0, 0
 
             if (it != 0) and args.save_batch_results:
-                (epoch_test_loss, test_preds, test_labels, test_private_labels) = eval_epoch(
+                (epoch_test_loss, test_preds, test_labels, test_private_labels, test_all_logits, test_all_probs) = eval_epoch(
                     model=model,
                     iterator=args.opt.test_generator,
                     args=args)
 
-                (epoch_valid_loss, valid_preds, valid_labels, valid_private_labels) = eval_epoch(
+                (epoch_valid_loss, valid_preds, valid_labels, valid_private_labels, valid_all_logits, valid_all_probs) = eval_epoch(
                     model=model,
                     iterator=args.opt.dev_generator,
                     args=args)
 
                 present_evaluation_scores(
-                    valid_preds, valid_labels, valid_private_labels,
-                    test_preds, test_labels, test_private_labels,
+                    valid_preds, valid_all_logits, valid_all_probs, valid_labels, valid_private_labels,
+                    test_preds, test_all_logits, test_all_probs, test_labels, test_private_labels,
                     epoch=epoch + (it / len(iterator)), epochs_since_improvement=None, model=model,
                     epoch_valid_loss=None,
                     is_best=False,
@@ -171,6 +171,8 @@ def eval_epoch(model, iterator, args):
     preds = []
     labels = []
     private_labels = []
+    all_logits = []
+    all_probs = []
 
     for batch in iterator:
         if args.encoder_architecture == "EvidenceGRADEr":
@@ -195,34 +197,37 @@ def eval_epoch(model, iterator, args):
 
         # main model predictions
         if args.gated:
-            predictions = model(text, p_tags)
+            logits = model(text, p_tags)
         else:
-            predictions = model(text)
+            logits = model(text)
 
-        predictions = predictions if not args.regression else predictions.squeeze()
+        logits = logits if not args.regression else logits.squeeze()
 
         # add the weighted loss
         if args.BT is not None and args.BT == "Reweighting":
-            loss = criterion(predictions, tags if not args.regression else regression_tags)
+            loss = criterion(logits, tags if not args.regression else regression_tags)
             loss = torch.mean(loss * instance_weights)
         else:
-            loss = criterion(predictions, tags if not args.regression else regression_tags)
+            loss = criterion(logits, tags if not args.regression else regression_tags)
 
         epoch_loss += loss.item()
 
-        predictions = predictions.detach().cpu()
+        logits = logits.detach().cpu()
 
         if args.regression:
-            preds += list(predictions.numpy())
+            preds += list(logits.numpy())
             tags = regression_tags.cpu().numpy()
         else:
             tags = tags.cpu().numpy()
-            preds += list(torch.argmax(predictions, axis=1).numpy())
+            preds += list(torch.argmax(logits, axis=1).numpy())
+            all_logits.extend(list(logits.numpy()))
+            all_probs.extend(list(torch.nn.functional.softmax(logits, dim=-1).numpy()))
+
         labels += list(tags)
 
         private_labels += list(batch[2].cpu().numpy())
 
-    return ((epoch_loss / len(iterator)), preds, labels, private_labels)
+    return ((epoch_loss / len(iterator)), preds, labels, private_labels, all_logits, all_probs)
 
 
 class BaseModel(nn.Module):
@@ -324,7 +329,7 @@ class BaseModel(nn.Module):
 
             # One epoch's validation
             (epoch_valid_loss, valid_preds,
-             valid_labels, valid_private_labels) = eval_epoch(
+             valid_labels, valid_private_labels, valid_all_logits, valid_all_probs) = eval_epoch(
                 model=self,
                 iterator=self.args.opt.dev_generator,
                 args=self.args)
@@ -347,14 +352,14 @@ class BaseModel(nn.Module):
                 logging.info("Evaluation at Epoch %d" % (epoch,))
 
                 (epoch_test_loss, test_preds,
-                 test_labels, test_private_labels) = eval_epoch(
+                 test_labels, test_private_labels, test_all_logits, test_all_probs) = eval_epoch(
                     model=self,
                     iterator=self.args.opt.test_generator,
                     args=self.args)
 
                 present_evaluation_scores(
-                    valid_preds, valid_labels, valid_private_labels,
-                    test_preds, test_labels, test_private_labels,
+                    valid_preds, valid_all_logits, valid_all_probs, valid_labels, valid_private_labels,
+                    test_preds, test_all_logits, test_all_probs, test_labels, test_private_labels,
                     epoch, epochs_since_improvement, self, epoch_valid_loss,
                     is_best,
                 )

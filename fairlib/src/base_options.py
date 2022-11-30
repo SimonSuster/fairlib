@@ -213,6 +213,8 @@ class BaseOptions(object):
                             help='Generalized mean aggregation power at the group level. Will use absolute value aggregation if None.')
         parser.add_argument('--class_agg_power', default=2,
                             help='Generalized mean aggregation power at the class level.')
+        parser.add_argument('--do_calib_eval', action='store_true', default=False,
+                            help='whether to perform calibration evaluation')
 
         # Regression related arguments
         parser.add_argument('--regression', action='store_true', default=False,

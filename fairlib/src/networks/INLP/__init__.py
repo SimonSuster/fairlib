@@ -82,9 +82,13 @@ def get_INLP_trade_offs(model, args):
 
         present_evaluation_scores(
             valid_preds=dev_y_pred,
+            valid_logits=None,
+            valid_probs=None,
             valid_labels=dev_labels if not args.regression else dev_regression_labels,
             valid_private_labels=dev_private_labels,
             test_preds=test_y_pred,
+            test_logits=None,
+            test_probs=None,
             test_labels=test_labels if not args.regression else test_regression_labels,
             test_private_labels=test_private_labels,
             epoch=iteration, epochs_since_improvement=None,

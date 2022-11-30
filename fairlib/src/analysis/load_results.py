@@ -23,6 +23,7 @@ def model_selection_parallel(
         save_path=None,
         return_all=False,
         keep_original_metrics=False,
+        do_calib_eval=False
 ):
     """perform model selection over different runs wrt different hyperparameters
 
@@ -37,7 +38,7 @@ def model_selection_parallel(
         selection_criterion (str): {GAP_metric_name | Performance_metric_name | "DTO"}
         index_column_names (list): tuned hyperparameters, ['adv_lambda', 'adv_num_subDiscriminator', 'adv_diverse_lambda'] by default.
         n_jobs (nonnegative int): 0 for non-parallel, positive integer refers to the number of parallel processes
-
+        do_calib_eval (bool, optional): whether to perform calibration evaluation
     Returns:
         pd.DataFrame: loaded results
     """
@@ -70,16 +71,15 @@ def model_selection_parallel(
             for exp in tqdm(exps):
                 # Get scores
                 _exp_results = retrive_exp_results(exp, GAP_metric_name, Performance_metric_name, selection_criterion,
-                                                   index_column_names, keep_original_metrics)
+                                                   index_column_names, keep_original_metrics, do_calib_eval)
 
                 exp_results.append(_exp_results)
         else:
             exp_results = Parallel(n_jobs=n_jobs, verbose=5)(delayed(retrive_exp_results)
                                                              (exp, GAP_metric_name, Performance_metric_name,
                                                               selection_criterion, index_column_names,
-                                                              keep_original_metrics)
+                                                              keep_original_metrics, do_calib_eval)
                                                              for exp in exps)
-
         result_df = pd.DataFrame(exp_results).set_index(index_column_names)
 
     if save_path is not None:

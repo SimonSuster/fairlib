@@ -3,7 +3,7 @@ from pathlib import Path
 from allennlp.data import Vocabulary
 from transformers import AutoTokenizer
 
-from fairlib.src.dataloaders.loaders.EGBinaryGradeNum import get_dataset_reader
+from fairlib.src.dataloaders.loaders.EGBinaryGrade import get_dataset_reader
 
 
 class text2id():

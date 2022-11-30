@@ -3,8 +3,8 @@ from .utils import *
 
 
 def present_evaluation_scores(
-        valid_preds, valid_labels, valid_private_labels,
-        test_preds, test_labels, test_private_labels,
+        valid_preds, valid_logits, valid_probs, valid_labels, valid_private_labels,
+        test_preds, test_logits, test_probs, test_labels, test_private_labels,
         epoch, epochs_since_improvement, model, epoch_valid_loss,
         is_best, prefix="checkpoint",
 ):
@@ -12,9 +12,13 @@ def present_evaluation_scores(
 
     Args:
         valid_preds (np.array): model predictions over the validation dataset.
+        valid_logits (np.array): model logits over the validation dataset.
+        valid_probs (np.array): model softmax probabilities over the validation dataset.
         valid_labels (np.array): true labels over the validation dataset.
         valid_private_labels (np.array): protected labels over the validation dataset.
         test_preds (np.array): model predictions over the test dataset.
+        test_logits (np.array): model logits over the test dataset.
+        test_probs (np.array): model softmax probabilities over the test dataset.
         test_labels (np.array): true labels over the test dataset.
         test_private_labels (np.array): protected labels over the test dataset.
         epoch (float): number of epoch of the model training.
@@ -46,8 +50,16 @@ def present_evaluation_scores(
         loss=epoch_valid_loss,
         dev_predictions=valid_preds,
         test_predictions=test_preds,
+        dev_logits=valid_logits,
+        test_logits=test_logits,
+        dev_probs=valid_probs,
+        test_probs=test_probs,
+        dev_labels=valid_labels,
+        test_labels=test_labels,
         dev_evaluations=valid_scores,
         test_evaluations=test_scores,
+        dev_private_labels=valid_private_labels,
+        test_private_labels=test_private_labels,
         valid_confusion_matrices=valid_confusion_matrices,
         test_confusion_matrices=test_confusion_matrices,
         is_best=is_best,

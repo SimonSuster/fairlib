@@ -4,3 +4,6 @@ from tutorial.evidencegrader_demo import train
 
 def train_vanilla():
     train(args)
+
+
+train_vanilla()

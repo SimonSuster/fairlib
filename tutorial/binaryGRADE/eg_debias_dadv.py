@@ -5,6 +5,7 @@ from tutorial.evidencegrader_demo import train
 
 def train_debiasing_dadv():
     for lambda_val in log_grid(-1, 1, 10):
+        lambda_val = float(lambda_val)
         # prepare debiasing args
         debiasing_args = args.copy()
         # Update the experiment name

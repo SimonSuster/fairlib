@@ -4,7 +4,7 @@ from .Adult import AdultDataset
 from .Bios import BiosDataset
 from .COMPAS import COMPASDataset
 from .ColoredMNIST import MNISTDataset
-from .EGBinaryGradeNum import EGBinaryGradeNum
+from .EGBinaryGrade import EGBinaryGrade
 from .FCL_BiosDataset import FCL_BiosDataset
 from .Moji import DeepMojiDataset
 from .Trustpilot import TrustpilotDataset
@@ -42,7 +42,7 @@ else:
 
 loader_map = {
     "moji": DeepMojiDataset,
-    "egbinarygradenum": EGBinaryGradeNum,
+    "egbinarygradenum": EGBinaryGrade,
     "bios": BiosDataset,
     "test": TestDataset,
     "sample": SampleDataset,

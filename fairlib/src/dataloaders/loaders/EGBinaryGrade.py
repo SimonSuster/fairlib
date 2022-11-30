@@ -21,6 +21,7 @@ TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", 
           "Neurology", "Orthopaedics & trauma", "Pain & anaesthesia", "Pregnancy & childbirth", "Public health",
           "Rheumatology", "Skin disorders", "Tobacco, drugs & alcohol", "Urology", "Wounds"]
 PROTECTED_LABEL_MAP = dict(zip(TOPICS, list(range(len(TOPICS)))))
+INV_PROTECTED_LABEL_MAP = {v: k for k, v in PROTECTED_LABEL_MAP.items()}
 
 
 def get_params(data_dir, fold_n, serialization_dir, scaler_training_path,
@@ -49,10 +50,9 @@ def get_dataset_reader(data_dir, fold_n, serialization_dir, scaler_training_path
     return dataset_reader
 
 
-class EGBinaryGradeNum(BaseDataset):
+class EGBinaryGrade(BaseDataset):
     """
     Data reader for EvidenceGRADEr's binary grading task.
-    Reads only numerical features.
     """
 
     def load_data(self):
@@ -82,15 +82,6 @@ class EGBinaryGradeNum(BaseDataset):
                 assert CAT_TYPES[-1] == "topics"
                 assert len(i.fields["cat_feats_list"].field_list) == n_cat_types
                 i.fields["cat_feats_list"].field_list[-1].tokens = []
-
-                # cat_feats_list = i.fields["cat_feats_list"].field_list[:-1]
-                # cat_feats_list = self.args.text_indexer.index(cat_feats_list)
-                # text_feats_list = self.args.text_indexer.index(i.fields["text_list"])
-                # self.X.append(
-                #    (i.fields["feat"].array,
-                #    text_feats_list,
-                #    cat_feats_list)
-                #    )
                 self.X.append(i)
                 self.y.append(LABEL_MAP[i.fields["label"].label])
 

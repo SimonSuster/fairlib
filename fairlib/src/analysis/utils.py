@@ -5,7 +5,11 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
+from sysrev.modelling.allennlp.analyse import get_prob_high_idx, get_entire_band, get_risk_coverage_auc_per_band, \
+    calculate_mce, calculate_ece, calculate_brier
 from yaml.loader import SafeLoader
+
+from fairlib.src.dataloaders.loaders.EGBinaryGrade import INV_PROTECTED_LABEL_MAP
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
@@ -148,6 +152,100 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
     return exps
 
 
+def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id):
+    results = {}
+
+    # get index of the higher-quality-evidence class
+    prob_high_idx, _ = get_prob_high_idx(f"{vocab_f}/labels.txt")
+    pos_golds = np.array(labels) == prob_high_idx
+    pos_preds = np.array(preds) == prob_high_idx
+    # probabilities that an instance is of higher-quality
+    probs_high = [p[prob_high_idx] for p in probs]
+
+    accs, confs, sizes = get_entire_band(probs_high, pos_golds, outfile=None)
+
+    results["ece"] = calculate_ece(accs, confs, sizes)
+    results["mce"] = calculate_mce(accs, confs)
+    results["brier"] = calculate_brier(probs_high, labels, to_onehot=False)
+
+    aurc_raw = []  # for plotting risk-coverage curves
+    aurc, coverages, risks = get_risk_coverage_auc_per_band(probs_high, pos_golds, pos_preds, band="entire")
+    for i in range(len(coverages)):
+        aurc_raw.append((dataset_id, "all", coverages[i], risks[i]))
+    results["aurc"] = aurc
+    results["aurc_raw"] = aurc_raw
+
+    results["per_private_label"] = {}
+    for private_label_idx in set(private_labels):
+        subset_idxs = np.array(private_labels) == private_label_idx
+        probs_high_subset = np.array(probs_high)[subset_idxs]
+        pos_golds_subset = pos_golds[subset_idxs]
+        labels_subset = np.array(labels)[subset_idxs]
+        pos_preds_subset = pos_preds[subset_idxs]
+
+        private_label = INV_PROTECTED_LABEL_MAP[private_label_idx]
+        if private_label not in results["per_private_label"]:
+            results["per_private_label"][private_label] = {}
+
+        accs, confs, sizes = get_entire_band(probs_high_subset, pos_golds_subset, outfile=None)
+
+        results["per_private_label"][private_label]["ece"] = calculate_ece(accs, confs, sizes)
+        results["per_private_label"][private_label]["mce"] = calculate_mce(accs, confs)
+        results["per_private_label"][private_label]["brier"] = calculate_brier(probs_high_subset, labels_subset, to_onehot=False)
+
+        aurc_raw = []  # for plotting risk-coverage curves
+        aurc, coverages, risks = get_risk_coverage_auc_per_band(probs_high_subset, pos_golds_subset, pos_preds_subset, band="entire")
+        results["per_private_label"][private_label]["aurc"] = aurc
+        for i in range(len(coverages)):
+            aurc_raw.append((dataset_id, private_label, coverages[i], risks[i]))
+        results["per_private_label"][private_label]["aurc_raw"] = aurc_raw
+
+    return results
+
+
+def get_calib_scores(exp):
+    """
+    Args:
+        exp (str): get_dir output, includeing the options and path to checkpoints
+
+    Returns:
+        pd.DataFrame: a pandas df including dev and test calibration scores for each epoch
+    """
+    epoch_id = []
+    epoch_scores_dev = {"ece": [], "brier": []}
+    epoch_scores_test = {"ece": [], "brier": []}
+    for epoch_result_dir in exp["dir"]:
+        epoch_result = torch.load(epoch_result_dir)
+
+        # Track the epoch id
+        epoch_id.append(epoch_result["epoch"])
+
+        # Calculate calibration metrics
+        dev_calib_results = calib_eval(probs=epoch_result["dev_probs"],
+                                       labels=epoch_result["dev_labels"],
+                                       preds=epoch_result["dev_predictions"],
+                                       private_labels=epoch_result["dev_private_labels"],
+                                       vocab_f=exp["opt"]["vocabulary_dir"],
+                                       dataset_id=exp["opt"]["dataset"])
+        epoch_scores_dev["ece"] = dev_calib_results["ece"]
+        epoch_scores_dev["brier"] = dev_calib_results["brier"]
+
+        test_calib_results = calib_eval()
+        epoch_scores_test["ece"] = test_calib_results["ece"]
+        epoch_scores_test["brier"] = test_calib_results["brier"]
+
+    epoch_results_dict = {"epoch": epoch_id}
+
+    for _dev_metric_keys in epoch_scores_dev.keys():
+        epoch_results_dict["dev_{}".format(_dev_metric_keys)] = epoch_scores_dev[_dev_metric_keys]
+    for _test_metric_keys in epoch_scores_test.keys():
+        epoch_results_dict["test_{}".format(_test_metric_keys)] = epoch_scores_test[_test_metric_keys]
+
+    epoch_scores = pd.DataFrame(epoch_results_dict)
+
+    return epoch_scores
+
+
 def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=False):
     """given the log path for a exp, read log and return the dev&test performacne, fairness, and DTO
 
@@ -241,7 +339,7 @@ def retrive_all_exp_results(exp, GAP_metric_name, Performance_metric_name, index
 
 def retrive_exp_results(
         exp, GAP_metric_name, Performance_metric_name,
-        selection_criterion, index_column_names, keep_original_metrics=False):
+        selection_criterion, index_column_names, keep_original_metrics=False, do_calib_eval=False):
     """Retrive experimental results of a epoch from the saved checkpoint.
 
     Args:
@@ -251,6 +349,7 @@ def retrive_exp_results(
         selection_criterion (_type_): _description_
         index_column_names (_type_): _description_
         keep_original_metrics (bool, optional): besides selected performance and fairness, show original metrics. Defaults to False.
+        do_calib_eval (bool, optional): whether to perform calibration evaluation
 
     Returns:
         dict: retrived results.
@@ -262,6 +361,8 @@ def retrive_exp_results(
         Performance_metric=Performance_metric_name,
         keep_original_metrics=keep_original_metrics,
     )
+    if do_calib_eval:
+        epoch_calib_scores = get_calib_scores(exp)
     if selection_criterion == "DTO":
         selected_epoch_id = np.argmin(epoch_scores["dev_{}".format(selection_criterion)])
     else:

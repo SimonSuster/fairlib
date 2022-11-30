@@ -1,4 +1,4 @@
-from fairlib.src.dataloaders.loaders.EGBinaryGradeNum import TOPICS
+from fairlib.src.dataloaders.loaders.EGBinaryGrade import TOPICS
 
 task = "bi_class2_nonaugm_all"
 data_dir = "/home/simon/Apps/SysRevData/data/derivations/all/splits/"
@@ -22,8 +22,6 @@ args = {
     "param_file": f"/home/simon/Apps/SysRev/sysrev/modelling/allennlp/training_config/{task}.jsonnet",
     # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
     "device_id": -1,
-    # Give a name to the exp, which will be used in the path
-    "exp_id": "vanilla",
     "num_groups": len(TOPICS),
     # "emb_size": len(NUM_TYPES),
     "emb_size": 3232,
