@@ -42,7 +42,7 @@ else:
 
 loader_map = {
     "moji": DeepMojiDataset,
-    "egbinarygradenum": EGBinaryGrade,
+    "egbinarygrade": EGBinaryGrade,
     "bios": BiosDataset,
     "test": TestDataset,
     "sample": SampleDataset,

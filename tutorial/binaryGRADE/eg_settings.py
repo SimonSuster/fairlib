@@ -9,7 +9,7 @@ batch_size = 2
 lr = 2e-5
 args = {
     # The name of the dataset, corresponding dataloader will be used,
-    "dataset": "EGBinaryGradeNum",
+    "dataset": "EGBinaryGrade",
     "encoder_architecture": "EvidenceGRADEr",
     # Specifiy the path to the input data
     "data_dir": data_dir,
@@ -26,7 +26,7 @@ args = {
     # "emb_size": len(NUM_TYPES),
     "emb_size": 3232,
     "n_hidden": 1,  # although in original EG, n_hidden=0, some de-biasing methods require n_hidden>0
-    "max_load": 3,
+    #"max_load": 3,
     "batch_size": batch_size,
     "test_batch_size": batch_size,
     "lr": lr,

@@ -5,7 +5,7 @@ Shared_options = {
     # Random seed
     "seed": 2022,
     # The name of the dataset, corresponding dataloader will be used,
-    "dataset": "EGBinaryGradeNum",
+    "dataset": "EGBinaryGrade",
     # Specifiy the path to the input data
     "data_dir": f"{args['data_dir']}{args['fold_n']}",
     # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
