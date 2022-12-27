@@ -77,15 +77,19 @@ def l2norm(matrix_1, matrix_2):
     return np.power(np.sum(np.power(matrix_1 - matrix_2, 2), axis=1), 0.5)
 
 
-def DTO(fairness_metric, performacne_metric, utopia_fairness=None, utopia_performance=None):
+def DTO(fairness_metric, performacne_metric, calibration_metric=None, utopia_fairness=None, utopia_performance=None):
     """calculate DTO for each condidate model
 
     Args:
         fairness_metric (List): fairness evaluation results (1-GAP)
         performacne_metric (List): performance evaluation results
+        calibration_metric (List): calibration evaluation results, optional
     """
 
     fairness_metric, performacne_metric = np.array(fairness_metric), np.array(performacne_metric)
+    if calibration_metric is not None:
+        calibration_metric = np.array(calibration_metric)
+
     # Best metric
     if (utopia_performance is None):
         utopia_performance = np.max(performacne_metric)
@@ -95,11 +99,17 @@ def DTO(fairness_metric, performacne_metric, utopia_fairness=None, utopia_perfor
     # Normalize
     performacne_metric = performacne_metric / utopia_performance
     fairness_metric = fairness_metric / utopia_fairness
+    if calibration_metric is not None:
+        calibration_metric = calibration_metric / utopia_fairness
 
     # Reshape and concatnate
     performacne_metric = performacne_metric.reshape(-1, 1)
     fairness_metric = fairness_metric.reshape(-1, 1)
-    normalized_metric = np.concatenate([performacne_metric, fairness_metric], axis=1)
+    if calibration_metric is not None:
+        calibration_metric = calibration_metric.reshape(-1, 1)
+        normalized_metric = np.concatenate([performacne_metric, fairness_metric, calibration_metric], axis=1)
+    else:
+        normalized_metric = np.concatenate([performacne_metric, fairness_metric], axis=1)
 
     # Calculate Euclidean distance
     return l2norm(normalized_metric, np.ones_like(normalized_metric))
@@ -152,11 +162,14 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
     return exps
 
 
-def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id):
+def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id, per_private_label=False):
     results = {}
 
     # get index of the higher-quality-evidence class
-    prob_high_idx, _ = get_prob_high_idx(f"{vocab_f}/labels.txt")
+    try:
+        prob_high_idx, _ = get_prob_high_idx(f"{vocab_f}/labels.txt")
+    except FileNotFoundError:
+        prob_high_idx, _ = get_prob_high_idx("/home/simon/Apps/SysRevData/data/modelling/saved/bi_class2_nonaugm_all/bi_class2_nonaugm_all_0/vocabulary/labels.txt")
     pos_golds = np.array(labels) == prob_high_idx
     pos_preds = np.array(preds) == prob_high_idx
     # probabilities that an instance is of higher-quality
@@ -169,13 +182,15 @@ def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id):
     results["brier"] = calculate_brier(probs_high, labels, to_onehot=False)
 
     aurc_raw = []  # for plotting risk-coverage curves
+
     aurc, coverages, risks = get_risk_coverage_auc_per_band(probs_high, pos_golds, pos_preds, band="entire")
     for i in range(len(coverages)):
-        aurc_raw.append((dataset_id, "all", coverages[i], risks[i]))
+        aurc_raw.append((coverages[i], risks[i]))
     results["aurc"] = aurc
     results["aurc_raw"] = aurc_raw
 
     results["per_private_label"] = {}
+
     for private_label_idx in set(private_labels):
         subset_idxs = np.array(private_labels) == private_label_idx
         probs_high_subset = np.array(probs_high)[subset_idxs]
@@ -187,17 +202,27 @@ def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id):
         if private_label not in results["per_private_label"]:
             results["per_private_label"][private_label] = {}
 
-        accs, confs, sizes = get_entire_band(probs_high_subset, pos_golds_subset, outfile=None)
+        try:
+            accs, confs, sizes = get_entire_band(probs_high_subset, pos_golds_subset, outfile=None)
+        except IndexError:
+            continue
+        ece = calculate_ece(accs, confs, sizes)
+        mce = calculate_mce(accs, confs)
+        brier = calculate_brier(probs_high_subset, labels_subset, to_onehot=False)
 
-        results["per_private_label"][private_label]["ece"] = calculate_ece(accs, confs, sizes)
-        results["per_private_label"][private_label]["mce"] = calculate_mce(accs, confs)
-        results["per_private_label"][private_label]["brier"] = calculate_brier(probs_high_subset, labels_subset, to_onehot=False)
+        try:
+            aurc, coverages, risks = get_risk_coverage_auc_per_band(probs_high_subset, pos_golds_subset, pos_preds_subset, band="entire")
+        except ValueError:
+            continue
+
+        results["per_private_label"][private_label]["ece"] = ece
+        results["per_private_label"][private_label]["mce"] = mce
+        results["per_private_label"][private_label]["brier"] = brier
+        results["per_private_label"][private_label]["aurc"] = aurc
 
         aurc_raw = []  # for plotting risk-coverage curves
-        aurc, coverages, risks = get_risk_coverage_auc_per_band(probs_high_subset, pos_golds_subset, pos_preds_subset, band="entire")
-        results["per_private_label"][private_label]["aurc"] = aurc
         for i in range(len(coverages)):
-            aurc_raw.append((dataset_id, private_label, coverages[i], risks[i]))
+            aurc_raw.append((coverages[i], risks[i]))
         results["per_private_label"][private_label]["aurc_raw"] = aurc_raw
 
     return results
@@ -212,27 +237,47 @@ def get_calib_scores(exp):
         pd.DataFrame: a pandas df including dev and test calibration scores for each epoch
     """
     epoch_id = []
-    epoch_scores_dev = {"ece": [], "brier": []}
-    epoch_scores_test = {"ece": [], "brier": []}
+    epoch_scores_dev = {"ece": [], "brier": [], "mce": [], "aurc": [], "aurc_raw": [], "per_private_label": []}
+    epoch_scores_test = {"ece": [], "brier": [], "mce": [], "aurc": [], "aurc_raw": [], "per_private_label": []}
     for epoch_result_dir in exp["dir"]:
         epoch_result = torch.load(epoch_result_dir)
+
+        # Calculate calibration metrics
+        if "dev_probs" not in epoch_result:
+            print()
+            continue
 
         # Track the epoch id
         epoch_id.append(epoch_result["epoch"])
 
-        # Calculate calibration metrics
         dev_calib_results = calib_eval(probs=epoch_result["dev_probs"],
                                        labels=epoch_result["dev_labels"],
                                        preds=epoch_result["dev_predictions"],
                                        private_labels=epoch_result["dev_private_labels"],
                                        vocab_f=exp["opt"]["vocabulary_dir"],
-                                       dataset_id=exp["opt"]["dataset"])
-        epoch_scores_dev["ece"] = dev_calib_results["ece"]
-        epoch_scores_dev["brier"] = dev_calib_results["brier"]
+                                       dataset_id=exp["opt"]["dataset"]
+                                       )
 
-        test_calib_results = calib_eval()
-        epoch_scores_test["ece"] = test_calib_results["ece"]
-        epoch_scores_test["brier"] = test_calib_results["brier"]
+        epoch_scores_dev["ece"].append(dev_calib_results["ece"])
+        epoch_scores_dev["brier"].append(dev_calib_results["brier"])
+        epoch_scores_dev["mce"].append(dev_calib_results["mce"])
+        epoch_scores_dev["aurc"].append(dev_calib_results["aurc"])
+        epoch_scores_dev["aurc_raw"].append(dev_calib_results["aurc_raw"])
+        epoch_scores_dev["per_private_label"].append(dev_calib_results["per_private_label"])
+
+        test_calib_results = calib_eval(probs=epoch_result["test_probs"],
+                                       labels=epoch_result["test_labels"],
+                                       preds=epoch_result["test_predictions"],
+                                       private_labels=epoch_result["test_private_labels"],
+                                       vocab_f=exp["opt"]["vocabulary_dir"],
+                                       dataset_id=exp["opt"]["dataset"])
+        epoch_scores_test["ece"].append(test_calib_results["ece"])
+        epoch_scores_test["brier"].append(test_calib_results["brier"])
+        epoch_scores_test["mce"].append(test_calib_results["mce"])
+        epoch_scores_test["aurc"].append(test_calib_results["aurc"])
+        epoch_scores_test["aurc_raw"].append(test_calib_results["aurc_raw"])
+        epoch_scores_test["per_private_label"].append(test_calib_results["per_private_label"])
+
 
     epoch_results_dict = {"epoch": epoch_id}
 
@@ -240,6 +285,13 @@ def get_calib_scores(exp):
         epoch_results_dict["dev_{}".format(_dev_metric_keys)] = epoch_scores_dev[_dev_metric_keys]
     for _test_metric_keys in epoch_scores_test.keys():
         epoch_results_dict["test_{}".format(_test_metric_keys)] = epoch_scores_test[_test_metric_keys]
+
+    # include positive interpretation for ECE, MCE, AURC and Brier
+    for split in ["dev", "test"]:
+        for metric in ["ece", "mce", "aurc", "brier"]:
+            epoch_results_dict[f"{split}_{metric}_pos"] = []
+            for score_per_epoch in epoch_results_dict[f"{split}_{metric}"]:
+                epoch_results_dict[f"{split}_{metric}_pos"].append(abs(score_per_epoch-1))
 
     epoch_scores = pd.DataFrame(epoch_results_dict)
 
@@ -339,7 +391,7 @@ def retrive_all_exp_results(exp, GAP_metric_name, Performance_metric_name, index
 
 def retrive_exp_results(
         exp, GAP_metric_name, Performance_metric_name,
-        selection_criterion, index_column_names, keep_original_metrics=False, do_calib_eval=False):
+        selection_criterion, index_column_names, keep_original_metrics=False, calib_metric_name=None, calib_selection_criterion=None, do_calib_eval=False):
     """Retrive experimental results of a epoch from the saved checkpoint.
 
     Args:
@@ -349,6 +401,8 @@ def retrive_exp_results(
         selection_criterion (_type_): _description_
         index_column_names (_type_): _description_
         keep_original_metrics (bool, optional): besides selected performance and fairness, show original metrics. Defaults to False.
+        calib_metric_name (_type_, optional): _description_
+        calib_selection_criterion (_type_, optional): _description_
         do_calib_eval (bool, optional): whether to perform calibration evaluation
 
     Returns:
@@ -361,8 +415,8 @@ def retrive_exp_results(
         Performance_metric=Performance_metric_name,
         keep_original_metrics=keep_original_metrics,
     )
-    if do_calib_eval:
-        epoch_calib_scores = get_calib_scores(exp)
+
+    # selection for predictive performance
     if selection_criterion == "DTO":
         selected_epoch_id = np.argmin(epoch_scores["dev_{}".format(selection_criterion)])
     else:
@@ -383,7 +437,60 @@ def retrive_exp_results(
     _exp_results["opt_dir"] = exp["opt_dir"]
     _exp_results["epoch"] = selected_epoch_id
 
-    return _exp_results
+    if do_calib_eval:
+        epoch_calib_scores = get_calib_scores(exp)
+
+        _test_selected_score = epoch_calib_scores[f"test_{calib_metric_name}"]
+
+        if calib_metric_name in ["ece", "mce", "aurc", "brier"]:
+            # select positive interpretation of the lower-is-better metric
+            calib_metric_name_select = f"{calib_metric_name}_pos"
+        else:
+            calib_metric_name_select = calib_metric_name
+
+        dev_selected_score = epoch_calib_scores[f"dev_{calib_metric_name_select}"]
+        test_selected_score = epoch_calib_scores[f"test_{calib_metric_name_select}"]
+
+        if len(epoch_scores.dev_fairness) != len(dev_selected_score):
+            dev_fairness = epoch_scores.dev_fairness[epoch_calib_scores.epoch]
+        else:
+            dev_fairness = epoch_scores.dev_fairness
+        if len(epoch_scores.test_fairness) != len(test_selected_score):
+            test_fairness = epoch_scores.test_fairness[epoch_calib_scores.epoch]
+        else:
+            test_fairness = epoch_scores.test_fairness
+
+        dev_calib_DTO = DTO(fairness_metric=dev_fairness, performacne_metric=dev_selected_score)
+        test_calib_DTO = DTO(fairness_metric=test_fairness, performacne_metric=test_selected_score)
+
+        # selection for calibration performance
+        if calib_selection_criterion == "DTO":
+            calib_selected_epoch_id = np.argmin(dev_calib_DTO)
+        elif calib_selection_criterion in ["ece", "mce", "aurc", "brier", "fairness", "performance"]:
+            # we use positive-interpretation of all these metrics, so just argmax
+            calib_selected_epoch_id = np.argmax(dev_selected_score)
+        else:
+            raise NotImplementedError
+
+        calib_selected_epoch_scores = epoch_calib_scores.iloc[calib_selected_epoch_id]
+        # this is potentially different from selected_epoch_scores above as we are selecting based on best calib epoch
+        # need this to get fairness result to include in the calib results
+        _selected_epoch_scores = epoch_scores.iloc[calib_selected_epoch_id]
+        # Get hyperparameters for this epoch
+        _calib_exp_results = {}
+        for hyperparam_key in index_column_names:
+            _calib_exp_results[hyperparam_key] = _exp_opt[hyperparam_key]
+
+        # Merge opt with scores
+        for key in calib_selected_epoch_scores.keys():
+            _calib_exp_results[key] = calib_selected_epoch_scores[key]
+        for key in ["dev_fairness", "test_fairness", "dev_performance", "test_performance"]:
+            _calib_exp_results[key] = _selected_epoch_scores[key]
+
+        _calib_exp_results["opt_dir"] = exp["opt_dir"]
+        _calib_exp_results["epoch"] = calib_selected_epoch_id
+
+    return (_exp_results, _calib_exp_results if do_calib_eval else None)
 
 
 def is_pareto_efficient(costs, return_mask=True):

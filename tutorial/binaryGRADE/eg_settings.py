@@ -26,7 +26,7 @@ args = {
     # "emb_size": len(NUM_TYPES),
     "emb_size": 3232,
     "n_hidden": 1,  # although in original EG, n_hidden=0, some de-biasing methods require n_hidden>0
-    #"max_load": 3,
+    #"max_load": 30,
     "batch_size": batch_size,
     "test_batch_size": batch_size,
     "lr": lr,

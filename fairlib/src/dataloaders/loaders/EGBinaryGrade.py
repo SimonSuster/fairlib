@@ -73,6 +73,7 @@ class EGBinaryGrade(BaseDataset):
             protected_labels = i.fields["cat_feats_list"].field_list[CAT_TYPES.index("topics")].tokens
             n_cat_types = len(CAT_TYPES)
             for protected_label in protected_labels:
+                _i = i.duplicate()
                 p_label = PROTECTED_LABEL_MAP.get(protected_label.text.replace("_", " "), None)
                 if p_label is None:
                     continue
@@ -80,9 +81,9 @@ class EGBinaryGrade(BaseDataset):
 
                 # erase protected label from the features
                 assert CAT_TYPES[-1] == "topics"
-                assert len(i.fields["cat_feats_list"].field_list) == n_cat_types
-                i.fields["cat_feats_list"].field_list[-1].tokens = []
-                self.X.append(i)
-                self.y.append(LABEL_MAP[i.fields["label"].label])
+                assert len(_i.fields["cat_feats_list"].field_list) == n_cat_types
+                _i.fields["cat_feats_list"].field_list[-1].tokens = []
+                self.X.append(_i)
+                self.y.append(LABEL_MAP[_i.fields["label"].label])
 
         print()

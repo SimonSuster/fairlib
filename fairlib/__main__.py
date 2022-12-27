@@ -21,7 +21,9 @@ def main(args):
     # state.opt.main_model = model
     logging.info('Model Initialized!')
 
-    model.train_self()
+    if state.INLP_model_load_path is None:
+        model.train_self()
+
     logging.info('Model Trained!')
 
     if state.INLP:

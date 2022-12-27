@@ -215,6 +215,8 @@ class BaseOptions(object):
                             help='Generalized mean aggregation power at the class level.')
         parser.add_argument('--do_calib_eval', action='store_true', default=False,
                             help='whether to perform calibration evaluation')
+        parser.add_argument('--calib_metric_name', type=str, default="ece")
+        parser.add_argument('--calib_selection_criterion', type=str, default="DTO")
 
         # Regression related arguments
         parser.add_argument('--regression', action='store_true', default=False,
@@ -326,6 +328,8 @@ class BaseOptions(object):
                             help="the maximum number of null-space projection iteration")
         parser.add_argument("--INLP_min_acc", type=float, default=0.0,
                             help="ignore the iteration if the acc is lower than the threshold")
+        parser.add_argument("--INLP_model_load_path", type=str, default=None,
+                            help='do not train a vanilla model from scratch but load an existing one')
 
         # Fair Supervised Contrastive Learning
         parser.add_argument("--FCL", action='store_true', default=False,

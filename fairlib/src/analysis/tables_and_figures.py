@@ -1,5 +1,6 @@
 # results dir and methods
 import os
+import pickle
 import shutil
 from pathlib import Path
 
@@ -14,7 +15,8 @@ from .utils import is_pareto_efficient, mkdirs
 
 def retrive_results(
         dataset,
-        log_dir="results"
+        log_dir="results",
+        do_calib_eval=False
 ):
     """retrive loaded results of a dataset from files
 
@@ -27,9 +29,11 @@ def retrive_results(
     """
     log_dir = Path(log_dir)
     results = {}
+    calib_results = {}
     for root, dirs, files in os.walk(log_dir):
         for file in files:
             if file.startswith(dataset):
+                #if "Dbg" in file:
                 pre_len = len(dataset) + len(str(log_dir)) + 2
                 file_path = os.path.join(root, file)
                 if file.endswith("_df.pkl"):
@@ -37,12 +41,20 @@ def retrive_results(
                 else:
                     mehtod = str(os.path.join(root, file))[pre_len:-4]
                 try:
-                    results[mehtod] = pd.read_pickle(file_path)
+                    if do_calib_eval:
+                        d = pickle.load(open(file_path, "rb"))
+                        if isinstance(d, dict) and "result" in d and "calib_result" in d:
+                            results[mehtod] = d["result"]
+                            calib_results[mehtod] = d["calib_result"]
+                        else:
+                            results[mehtod] = d
+                    else:
+                        results[mehtod] = pd.read_pickle(file_path)
                 except:
                     import pickle5
                     with open(file_path, "rb") as fh:
                         results[mehtod] = pickle5.load(fh)
-    return results
+    return (results, calib_results)
 
 
 def final_results_df(
@@ -60,6 +72,11 @@ def final_results_df(
         save_conf_dir=None,
         num_trail=None,
         additional_metrics=[],
+        calib_additional_metrics=[],
+        do_calib_eval=False,
+        calib_results_dict=None,
+        calib_metric_name="ece",
+        calib_selection_criterion="DTO"
 ):
     """Process the results to a single dataset from creating tables and plots.
 
@@ -84,10 +101,41 @@ def final_results_df(
     """
 
     df_list = []
+    calib_df_list = []
+
     for key in (results_dict.keys() if model_order is None else model_order):
         _df = results_dict[key]
 
+
+        if do_calib_eval and key not in calib_results_dict:
+            _do_calib_eval = False
+        else:
+            _do_calib_eval = do_calib_eval
+
+        if _do_calib_eval:
+            _calib_df = calib_results_dict[key]
+            # remove aurc=0 results as these are invalid
+            _calib_df = _calib_df[(_calib_df["dev_aurc"] != 0) & (_calib_df["test_aurc"] != 0)]
         # Calculate Mean and Variance for each run
+        # for calibration performance
+        if _do_calib_eval:
+            if calib_metric_name in ["ece", "mce", "aurc"]:
+                # select positive interpretation of the lower-is-better metric
+                calib_metric_name_select = f"{calib_metric_name}_pos"
+            else:
+                calib_metric_name_select = calib_metric_name
+            calib_agg_dict = {
+                f"dev_{calib_metric_name_select}": ["mean", "std"],
+                "dev_fairness": ["mean", "std"],
+                "dev_performance": ["mean", "std"],
+                f"test_{calib_metric_name_select}": ["mean", "std"],
+                "test_performance": ["mean", "std"],
+                "test_fairness": ["mean", "std"],
+                "epoch": list,
+                "opt_dir": list,
+            }
+
+        # for predictive performance
         agg_dict = {
             "dev_performance": ["mean", "std"],
             "dev_fairness": ["mean", "std"],
@@ -96,38 +144,53 @@ def final_results_df(
             "epoch": list,
             "opt_dir": list,
         }
+
         # Add aggregation to the specified metrics
         for _additional_metric in additional_metrics:
             agg_dict[_additional_metric] = ["mean", "std"]
 
         try:
             _df = _df.groupby(_df.index).agg(agg_dict).reset_index()
+            if _do_calib_eval:
+                _calib_df = _calib_df.groupby(_calib_df.index).agg(calib_agg_dict).reset_index()
         except:
             print(key)
             break
 
         _df.columns = [' '.join(col).strip() for col in _df.columns.values]
+        if _do_calib_eval:
+            _calib_df.columns = [' '.join(col).strip() for col in _calib_df.columns.values]
+
 
         if num_trail is not None:
             _df = _df.sample(n=min(int(num_trail), len(_df)), random_state=1)
+            if _do_calib_eval:
+                _calib_df = _calib_df.sample(n=min(int(num_trail), len(_calib_df)), random_state=1)
+
 
         # Select Pareto Frontiers
         _pareto_flag = is_pareto_efficient(
             -1 * _df[["{}_{} mean".format(pareto_selection, Fairness_metric_name),
                       "{}_{} mean".format(pareto_selection, Performance_metric_name)]].to_numpy()
         )
+        if _do_calib_eval:
+            _calib_pareto_flag = is_pareto_efficient(
+                -1 * _calib_df[["{}_{} mean".format(pareto_selection, Fairness_metric_name),
+                          "{}_{} mean".format(pareto_selection, calib_metric_name_select)]].to_numpy()
+            )
+
         _df["is_pareto"] = _pareto_flag
+        if _do_calib_eval:
+            _calib_df["is_pareto"] = _calib_pareto_flag
+
         if pareto:
             _pareto_df = _df[_pareto_flag].copy()
+            if _do_calib_eval:
+                _calib_pareto_df = _calib_df[_calib_pareto_flag].copy()
         else:
             _pareto_df = _df.copy()
-
-        # Filtering based on min fairness and performance
-        _tmp_df = _pareto_df[_pareto_df["dev_{} mean".format(Performance_metric_name)] >= Performance_threshold].copy()
-        _tmp_df = _tmp_df[_tmp_df["dev_{} mean".format(Fairness_metric_name)] >= Fairness_threshold].copy()
-
-        if len(_tmp_df) >= 1:
-            _pareto_df = _tmp_df
+            if _do_calib_eval:
+                _calib_pareto_df = _calib_df.copy()
 
         # Rename and reorder the columns
         selected_columns = ["{}_{} {}".format(phase, metric, value) for phase in ["test", "dev"] for metric in
@@ -135,13 +198,31 @@ def final_results_df(
         selected_columns.append("epoch list")
         selected_columns.append("opt_dir list")
         selected_columns.append("is_pareto")
+
+
+        if _do_calib_eval:
+            calib_selected_columns = ["{}_{} {}".format(phase, metric, value) for phase in ["test", "dev"] for metric in
+                            [calib_metric_name_select, Fairness_metric_name] for value in ["mean", "std"]]
+            calib_selected_columns.append("epoch list")
+            calib_selected_columns.append("opt_dir list")
+            calib_selected_columns.append("is_pareto")
+
         # Consider the selected models
         additional_metric_columns = ["{} {}".format(metric, value) for metric in additional_metrics for value in
                                      ["mean", "std"]]
         selected_columns = selected_columns + additional_metric_columns
 
+        if _do_calib_eval:
+            calib_additional_metric_columns = ["{} {}".format(metric, value) for metric in calib_additional_metrics for value in
+                                         ["mean", "std"]]
+
+            calib_selected_columns = calib_selected_columns + calib_additional_metric_columns
+
         _pareto_df = _pareto_df[selected_columns].copy()
         _pareto_df["Models"] = [key] * len(_pareto_df)
+        if _do_calib_eval:
+            _calib_pareto_df = _calib_pareto_df[calib_selected_columns].copy()
+            _calib_pareto_df["Models"] = [key] * len(_calib_pareto_df)
 
         _final_DTO = DTO(
             fairness_metric=list(_pareto_df["dev_{} mean".format(Fairness_metric_name)]),
@@ -149,6 +230,15 @@ def final_results_df(
             utopia_fairness=1, utopia_performance=1
         )
         _pareto_df["dev_DTO mean"] = _final_DTO
+
+        if _do_calib_eval:
+            _calib_final_DTO = DTO(
+                fairness_metric=list(_calib_pareto_df["dev_{} mean".format(Fairness_metric_name)]),
+                performacne_metric=list(_calib_pareto_df["dev_{} mean".format(Performance_metric_name)]),
+                calibration_metric=list(_calib_pareto_df["dev_{} mean".format(calib_metric_name_select)]),
+                utopia_fairness=1, utopia_performance=1
+            )
+            _calib_pareto_df["dev_DTO mean"] = _calib_final_DTO
 
         # Model selection
         if selection_criterion is not None:
@@ -160,8 +250,27 @@ def final_results_df(
 
         df_list.append(_pareto_df)
 
+
+        if _do_calib_eval:
+            # Model selection: calibration
+            if calib_selection_criterion is not None:
+                if calib_selection_criterion == "DTO":
+                    calib_selected_epoch_id = np.argmin(_calib_pareto_df["dev_{} mean".format(calib_selection_criterion)])
+                elif calib_selection_criterion in ["ece", "mce", "aurc", "fairness", "performance"]:
+                    # we use positive-interpretation of all these metrics, so just argmax
+                    calib_selected_epoch_id = np.argmax(_calib_pareto_df["dev_{} mean".format(calib_selection_criterion)])
+                else:
+                    raise NotImplementedError
+                _calib_pareto_df = _calib_pareto_df.iloc[[calib_selected_epoch_id]].copy()
+                print(f"best selected model/hyperparam based on {calib_selection_criterion}: {_calib_pareto_df['opt_dir list'].tolist()[0]}")
+
+            calib_df_list.append(_calib_pareto_df)
+
     final_df = pd.concat(df_list)
     final_df.reset_index(inplace=True)
+    if do_calib_eval:
+        calib_final_df = pd.concat(calib_df_list)
+        calib_final_df.reset_index(inplace=True)
 
     if selection_criterion is not None:
         _over_DTO = DTO(
@@ -183,7 +292,21 @@ def final_results_df(
         final_df = final_df[["Models"] + evaluation_cols + ["DTO"] + reproducibility_cols + [
             "is_pareto"] + additional_metric_columns].copy()
 
-    return final_df
+    if do_calib_eval:
+        if calib_selection_criterion is not None:
+            _calib_over_DTO = DTO(
+                fairness_metric=list(calib_final_df["test_{} mean".format(Fairness_metric_name)]),
+                performacne_metric=list(calib_final_df["test_{} mean".format(Performance_metric_name)]),
+                calibration_metric=list(calib_final_df["test_{} mean".format(calib_metric_name_select)]),
+                utopia_fairness=1, utopia_performance=1
+            )
+            calib_final_df["DTO"] = _calib_over_DTO
+            calib_evaluation_cols = list(calib_final_df.keys())[1:(9 if return_dev else 5)]
+            calib_reproducibility_cols = ["epoch list", "opt_dir list"] if return_conf else []
+            calib_final_df = calib_final_df[["Models"] + calib_evaluation_cols + ["DTO"] + calib_reproducibility_cols + [
+                "is_pareto"] + additional_metric_columns].copy()
+
+    return (final_df, calib_final_df if do_calib_eval else None)
 
 
 def interactive_plot(plot_df, figsize=(12, 7), dpi=100, selection="DTO"):
@@ -445,9 +568,22 @@ def interactive_plot(plot_df, figsize=(12, 7), dpi=100, selection="DTO"):
 
 
 def make_plot(plot_df, figure_name=None, performance_name="Accuracy"):
+    if performance_name in ["ece", "mce", "aurc", "brier"]:
+        # for these metrics, we use a positive interpretation
+        performance_name += "_pos"
     plot_df["Fairness"] = plot_df["test_fairness mean"]
-    plot_df[performance_name] = plot_df["test_performance mean"]
 
+    if performance_name in ["ece_pos", "mce_pos", "aurc_pos", "brier"]:
+        plot_df[performance_name] = plot_df[f"test_{performance_name} mean"]
+    else:
+        plot_df[performance_name] = plot_df["test_performance mean"]
+
+    plot_df["Models"] = plot_df["Models"].str.replace("Num", "")
+    names_to_map = {"aurc_pos": "1 - aurc", "brier_pos": "1 - brier", "ece_pos": "1 - ece", "mce_pos": "1 - mce"}
+    plot_df.rename(columns=names_to_map, inplace=True)
+    if performance_name in names_to_map:
+        performance_name = performance_name.replace("_pos", "")
+        performance_name = "1 - " + performance_name
     figure = plt.figure(dpi=100)
     with sns.axes_style("white"):
         sns.lineplot(

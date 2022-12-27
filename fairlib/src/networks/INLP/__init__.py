@@ -35,7 +35,8 @@ def get_INLP_trade_offs(model, args):
                   "max_iter": 100}
 
     # Load best checkpoints
-    model = load_trained_model(model, args.model_dir, args.device)
+    model_dir = args.model_dir if args.INLP_model_load_path is None else args.INLP_model_load_path
+    model = load_trained_model(model, model_dir, args.device)
 
     # Extract Hidden representations
     train_hidden, train_labels, train_private_labels, train_regression_labels = model.extract_hidden_representations(
