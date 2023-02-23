@@ -9,7 +9,6 @@ from ..utils import BaseDataset
 CAT_TYPES = ["review_type", "type_effect", "topics"]
 TXT_TYPES = ["full_abstract_txt", "abstract_conclusion_txt", "plain_language_summary_txt", "authors_conclusions_txt"]
 NUM_TYPES = NUMERICAL_FEATS + NUMERICAL_FEATS_PER_OUTCOME
-LABEL_MAP = BINARY_MAPPING2
 TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", "Complementary & alternative medicine",
           "Consumer & communication strategies", "Dentistry & oral health",
           "Developmental, psychosocial & learning problems",
@@ -20,8 +19,24 @@ TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", 
           "Neonatal care",
           "Neurology", "Orthopaedics & trauma", "Pain & anaesthesia", "Pregnancy & childbirth", "Public health",
           "Rheumatology", "Skin disorders", "Tobacco, drugs & alcohol", "Urology", "Wounds"]
-PROTECTED_LABEL_MAP = dict(zip(TOPICS, list(range(len(TOPICS)))))
-INV_PROTECTED_LABEL_MAP = {v: k for k, v in PROTECTED_LABEL_MAP.items()}
+PROTECTED_LABEL_MAP_AREA = dict(zip(TOPICS, list(range(len(TOPICS)))))
+INV_PROTECTED_LABEL_MAP_AREA = {v: k for k, v in PROTECTED_LABEL_MAP_AREA.items()}
+
+AGE = ['Child 6-12 years', 'Aged 65-79 years', 'Middle Aged 45-64 years', 'Adolescent 13-18 years', 'Adult 19-44 years',
+       'Child, Preschool 2-5 years', 'Birth to 1 mo', 'Young Adult 19-24 years', 'Aged 80 and over 80+ years', 'Infant 1 to 23 mo']
+PROTECTED_LABEL_MAP_AGE = dict(zip(AGE, list(range(len(AGE)))))
+INV_PROTECTED_LABEL_MAP_AGE = {v: k for k, v in PROTECTED_LABEL_MAP_AGE.items()}
+
+SEX = ["Male", "Female", "Male and Female"]
+PROTECTED_LABEL_MAP_SEX = dict(zip(SEX, list(range(len(SEX)))))
+INV_PROTECTED_LABEL_MAP_SEX = {v: k for k, v in PROTECTED_LABEL_MAP_SEX.items()}
+
+
+def binary_mapping_criteria(label):
+    if label == "other":
+        return 1
+    else:
+        return 0
 
 
 def get_params(data_dir, fold_n, serialization_dir, scaler_training_path,
@@ -64,6 +79,11 @@ class EGBinaryGrade(BaseDataset):
         dataset_reader = get_dataset_reader(self.data_dir, self.fold_n, self.serialization_dir,
                                             self.scaler_training_path, param_file=self.args.param_file)
 
+        if "bi_class2" in self.args.opt.param_file:
+            label_map = lambda x: BINARY_MAPPING2[x]
+        else:
+            label_map = binary_mapping_criteria
+
         data_path = f"{self.data_dir}{self.fold_n}/{self.split}.csv"
         for c, i in enumerate(dataset_reader._read(data_path)):
             if self.args.max_load is not None:
@@ -74,7 +94,7 @@ class EGBinaryGrade(BaseDataset):
             n_cat_types = len(CAT_TYPES)
             for protected_label in protected_labels:
                 _i = i.duplicate()
-                p_label = PROTECTED_LABEL_MAP.get(protected_label.text.replace("_", " "), None)
+                p_label = PROTECTED_LABEL_MAP_AREA.get(protected_label.text.replace("_", " "), None)
                 if p_label is None:
                     continue
                 self.protected_label.append(p_label)
@@ -84,6 +104,6 @@ class EGBinaryGrade(BaseDataset):
                 assert len(_i.fields["cat_feats_list"].field_list) == n_cat_types
                 _i.fields["cat_feats_list"].field_list[-1].tokens = []
                 self.X.append(_i)
-                self.y.append(LABEL_MAP[_i.fields["label"].label])
+                self.y.append(label_map(_i.fields["label"].label))
 
         print()

@@ -38,7 +38,10 @@ def get_projection_to_intersection_of_nullspaces(rowspace_projection_matrices: L
     """
 
     I = np.eye(input_dim)
+    print(I)
     Q = np.sum(rowspace_projection_matrices, axis=0)
+    print(Q)
+    print(Q.shape)
     P = I - get_rowspace_projection(Q)
 
     return P
@@ -104,7 +107,6 @@ def get_debiasing_projection(classifier_class, cls_params: Dict, num_classifiers
 
     pbar = tqdm(range(num_classifiers))
     for i in pbar:
-
         clf = classifier.SKlearnClassifier(classifier_class(**cls_params))
         dropout_scale = 1. / (1 - dropout_rate + 1e-6)
         dropout_mask = (np.random.rand(*X_train.shape) < (1 - dropout_rate)).astype(float) * dropout_scale

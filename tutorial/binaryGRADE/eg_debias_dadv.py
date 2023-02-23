@@ -2,13 +2,15 @@ from tutorial.binaryGRADE.eg_settings import args
 from tutorial.evidencegrader_demo import train
 
 
-def train_debiasing_dadv():
-    for diverse_lambda_val in [0.01, 0.1, 1, 10, 100]:
+def train_debiasing_dadv(fold_n):
+    #for diverse_lambda_val in [0.01, 0.1, 1, 10, 100]:
+    for diverse_lambda_val in [0.01]:
         adv_lambda = float(1.58489319e-02)  # from adv hyper-tuning
         # prepare debiasing args
         debiasing_args = args.copy()
+        debiasing_args["fold_n"] = fold_n
         # Update the experiment name
-        debiasing_args["exp_id"] = f"DAdv{diverse_lambda_val}_{adv_lambda}"
+        debiasing_args["exp_id"] = f"DAdv{diverse_lambda_val}_{adv_lambda}_fold{fold_n}"
         # Perform adversarial training if True
         debiasing_args["adv_debiasing"] = True
         debiasing_args["adv_lambda"] = adv_lambda
@@ -27,4 +29,5 @@ def train_debiasing_dadv():
         train(debiasing_args)
 
 
-train_debiasing_dadv()
+for i in range(1, 10):
+    train_debiasing_dadv(i)

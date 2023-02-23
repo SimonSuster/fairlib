@@ -324,14 +324,14 @@ class EvidenceGRADEr(Encoders, BaseModel):
 
 
 class BERTClassifier(BaseModel):
-    model_name = 'bert-base-cased'
+    #model_name = 'bert-base-cased'
     n_freezed_layers = 10
 
-    def __init__(self, args):
+    def __init__(self, args, model_name='bert-base-cased'):
         super(BERTClassifier, self).__init__()
         self.args = args
 
-        self.bert = BertModel.from_pretrained(self.model_name)
+        self.bert = BertModel.from_pretrained(model_name)
 
         self.bert_layers = [self.bert.embeddings,
                             self.bert.encoder.layer[0],

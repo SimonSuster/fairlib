@@ -5,11 +5,16 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
+from scipy.stats import stats
+from sklearn.metrics import f1_score
 from sysrev.modelling.allennlp.analyse import get_prob_high_idx, get_entire_band, get_risk_coverage_auc_per_band, \
     calculate_mce, calculate_ece, calculate_brier
+from sysrev.modelling.allennlp.util_stat import gap_eval_scores
 from yaml.loader import SafeLoader
 
-from fairlib.src.dataloaders.loaders.EGBinaryGrade import INV_PROTECTED_LABEL_MAP
+from fairlib.src.dataloaders.loaders.EGBinaryGrade import INV_PROTECTED_LABEL_MAP_AREA
+from fairlib.src.dataloaders.loaders.RoB import get_protected_group, get_protected_label_map, \
+    get_inv_protected_label_map
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
@@ -162,18 +167,57 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
     return exps
 
 
-def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id, per_private_label=False):
+def get_calib_scores_folds(results_per_fold):
+    raw_data = {}
+    calib_results = {}
+
+    for fold_n, d in results_per_fold.items():
+        for method, df in d["EG_calib_results"].items():
+            method = method[3:]
+            if method not in raw_data:
+                raw_data[method] = {"probs": [], "labels": [], "preds": [], "private_labels": [], "vocab_f": None}
+            raw_data[method]["probs"].extend(df["test_test_probs"].to_list()[0])
+            raw_data[method]["labels"].extend(df["test_test_labels"].to_list()[0])
+            raw_data[method]["preds"].extend(df["test_test_predictions"].to_list()[0])
+            raw_data[method]["private_labels"].extend(df["test_test_private_labels"].to_list()[0])
+            if raw_data[method]["vocab_f"] is None:
+                raw_data[method]["vocab_f"] = df["test_vocab_f"].to_list()[0]
+            else:
+                assert raw_data[method]["vocab_f"] == df["test_vocab_f"].to_list()[0]
+
+    for method, d in raw_data.items():
+        results = calib_eval(d["probs"], d["labels"], d["preds"], d["private_labels"], d["vocab_f"], None, "area")
+        _, _, perf_results_per_group = gap_eval_scores(d["preds"], d["labels"], d["private_labels"])
+        perf_results_per_group = {INV_PROTECTED_LABEL_MAP_AREA[k]: v for k, v in perf_results_per_group.items() if k != "overall"}
+        for g, d in results["per_private_label"].items():
+            d.update(perf_results_per_group[g])
+        for metric in ["ece", "mce", "aurc", "brier"]:
+            results[f"{metric}_pos"] = abs(results[metric] - 1)
+        calib_results[method] = results
+
+    return calib_results
+
+
+def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id, protected_group, per_private_label=False):
     results = {}
+    inv_protected_label_map = get_inv_protected_label_map(protected_group)
 
     # get index of the higher-quality-evidence class
-    try:
-        prob_high_idx, _ = get_prob_high_idx(f"{vocab_f}/labels.txt")
-    except FileNotFoundError:
-        prob_high_idx, _ = get_prob_high_idx("/home/simon/Apps/SysRevData/data/modelling/saved/bi_class2_nonaugm_all/bi_class2_nonaugm_all_0/vocabulary/labels.txt")
+    if vocab_f is None:
+        prob_high_idx = 1
+    else:
+        try:
+            prob_high_idx, _ = get_prob_high_idx(f"{vocab_f}/labels.txt")
+        except FileNotFoundError:
+            prob_high_idx, _ = get_prob_high_idx("/home/simon/Apps/SysRevData/data/modelling/saved/bi_class2_nonaugm_all/bi_class2_nonaugm_all_0/vocabulary/labels.txt")
     pos_golds = np.array(labels) == prob_high_idx
     pos_preds = np.array(preds) == prob_high_idx
     # probabilities that an instance is of higher-quality
     probs_high = [p[prob_high_idx] for p in probs]
+
+    gap = gap_eval_scores(preds, labels, private_labels)
+    results["Fairness"] = 1 - gap[0]["TPR_GAP"]
+    results["macro_fscore"] = f1_score(labels, preds, average="macro")
 
     accs, confs, sizes = get_entire_band(probs_high, pos_golds, outfile=None)
 
@@ -198,7 +242,7 @@ def calib_eval(probs, labels, preds, private_labels, vocab_f, dataset_id, per_pr
         labels_subset = np.array(labels)[subset_idxs]
         pos_preds_subset = pos_preds[subset_idxs]
 
-        private_label = INV_PROTECTED_LABEL_MAP[private_label_idx]
+        private_label = inv_protected_label_map[private_label_idx]
         if private_label not in results["per_private_label"]:
             results["per_private_label"][private_label] = {}
 
@@ -238,7 +282,12 @@ def get_calib_scores(exp):
     """
     epoch_id = []
     epoch_scores_dev = {"ece": [], "brier": [], "mce": [], "aurc": [], "aurc_raw": [], "per_private_label": []}
-    epoch_scores_test = {"ece": [], "brier": [], "mce": [], "aurc": [], "aurc_raw": [], "per_private_label": []}
+    epoch_scores_test = {"ece": [], "brier": [], "mce": [], "aurc": [], "aurc_raw": [], "per_private_label": [],
+                         "test_probs": [], "test_labels": [], "test_predictions": [], "test_private_labels": [],
+                         "vocab_f": []}
+
+    protected_group = get_protected_group(exp["opt"]["data_dir"])
+
     for epoch_result_dir in exp["dir"]:
         epoch_result = torch.load(epoch_result_dir)
 
@@ -250,13 +299,14 @@ def get_calib_scores(exp):
         # Track the epoch id
         epoch_id.append(epoch_result["epoch"])
 
+        vocab_f = exp["opt"].get("vocabulary_dir", None)
         dev_calib_results = calib_eval(probs=epoch_result["dev_probs"],
                                        labels=epoch_result["dev_labels"],
                                        preds=epoch_result["dev_predictions"],
                                        private_labels=epoch_result["dev_private_labels"],
-                                       vocab_f=exp["opt"]["vocabulary_dir"],
-                                       dataset_id=exp["opt"]["dataset"]
-                                       )
+                                       vocab_f=vocab_f,
+                                       dataset_id=exp["opt"]["dataset"],
+                                       protected_group=protected_group)
 
         epoch_scores_dev["ece"].append(dev_calib_results["ece"])
         epoch_scores_dev["brier"].append(dev_calib_results["brier"])
@@ -266,18 +316,24 @@ def get_calib_scores(exp):
         epoch_scores_dev["per_private_label"].append(dev_calib_results["per_private_label"])
 
         test_calib_results = calib_eval(probs=epoch_result["test_probs"],
-                                       labels=epoch_result["test_labels"],
-                                       preds=epoch_result["test_predictions"],
-                                       private_labels=epoch_result["test_private_labels"],
-                                       vocab_f=exp["opt"]["vocabulary_dir"],
-                                       dataset_id=exp["opt"]["dataset"])
+                                        labels=epoch_result["test_labels"],
+                                        preds=epoch_result["test_predictions"],
+                                        private_labels=epoch_result["test_private_labels"],
+                                        vocab_f=vocab_f,
+                                        dataset_id=exp["opt"]["dataset"],
+                                        protected_group=protected_group)
         epoch_scores_test["ece"].append(test_calib_results["ece"])
         epoch_scores_test["brier"].append(test_calib_results["brier"])
         epoch_scores_test["mce"].append(test_calib_results["mce"])
         epoch_scores_test["aurc"].append(test_calib_results["aurc"])
         epoch_scores_test["aurc_raw"].append(test_calib_results["aurc_raw"])
         epoch_scores_test["per_private_label"].append(test_calib_results["per_private_label"])
-
+        # these are later concat'd across all folds for computing risk-coverage plots:
+        epoch_scores_test["test_probs"].append(epoch_result["test_probs"])
+        epoch_scores_test["test_labels"].append(epoch_result["test_labels"])
+        epoch_scores_test["test_predictions"].append(epoch_result["test_predictions"])
+        epoch_scores_test["test_private_labels"].append(epoch_result["test_private_labels"])
+        epoch_scores_test["vocab_f"].append(vocab_f)
 
     epoch_results_dict = {"epoch": epoch_id}
 
@@ -314,6 +370,7 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=
     epoch_scores_dev = {"performance": [], "fairness": []}
     epoch_scores_test = {"performance": [], "fairness": []}
     for epoch_result_dir in exp["dir"]:
+        #print(epoch_result_dir)
         epoch_result = torch.load(epoch_result_dir)
 
         # Track the epoch id
@@ -608,3 +665,77 @@ def auc_performance_fairness_tradeoff(
         auc_filtered_curve = auc_filtered_curve / normalization_term
 
     return auc_filtered_curve, filtered_curve
+
+
+def analyse_increases(aurc_raw):
+    n_increases = 0
+    sum_increases = 0
+    old_err = None
+    for th, err in aurc_raw:
+        if old_err is None:
+            old_err = err
+        else:
+            if err > old_err:
+                n_increases += 1
+                sum_increases += err - old_err
+
+    return n_increases, sum_increases
+
+
+def analyse_worse_than_full_coverage(aurc_raw):
+    """
+    is there, at any reduced coverage, an error rate that is higher than that at full coverage?
+    """
+    errs = np.array([err for th, err in aurc_raw])
+
+    return np.max(errs) > errs[0]
+
+
+def get_stats_aurcs(results, fun=stats.describe):
+    out = {}
+    for method, d in results.items():
+        out[method] = fun([xd["aurc"] for area, xd in d["per_private_label"].items()])
+
+    return out
+
+
+def analyse_selective_classification(results):
+    out_n_increases, out_sum_increases = {}, {}
+    out_worse_than_full_coverage = {}
+
+    stats_aurcs = get_stats_aurcs(results)
+    median_aurcs = get_stats_aurcs(results, fun=np.median)
+
+    for model, d in results.items():
+        # general (all):
+        n_increases, sum_increases = analyse_increases(d["aurc_raw"])
+        worse_than_full_coverage = analyse_worse_than_full_coverage(d["aurc_raw"])
+        if model not in out_n_increases:
+            out_n_increases[model] = {}
+        if model not in out_sum_increases:
+            out_sum_increases[model] = {}
+        if model not in out_worse_than_full_coverage:
+            out_worse_than_full_coverage[model] = {}
+        out_n_increases[model]["all"] = n_increases
+        out_sum_increases[model]["all"] = sum_increases
+        out_worse_than_full_coverage[model]["all"] = worse_than_full_coverage
+
+        per_private_label_results = d["per_private_label"]
+        for protected_label, xd in per_private_label_results.items():
+            if not xd:
+                continue
+            n_increases, sum_increases = analyse_increases(xd["aurc_raw"])
+            worse_than_full_coverage = analyse_worse_than_full_coverage(xd["aurc_raw"])
+
+            out_n_increases[model][protected_label] = n_increases
+            out_sum_increases[model][protected_label] = sum_increases
+            out_worse_than_full_coverage[model][protected_label] = worse_than_full_coverage
+
+    return {"out_n_increases": out_n_increases,
+            "total_n_increases": {model: [sum(d.values())] for model, d in out_n_increases.items()},
+            "out_sum_increases": out_sum_increases,
+            "total_sum_increases": {model: [sum(d.values())] for model, d in out_sum_increases.items()},
+            "out_worse_than_full_coverage": {model: sum(d.values()) for model, d in out_worse_than_full_coverage.items()},
+            "stats_aurcs": (stats_aurcs, {model: np.sqrt(stats.variance) for model, stats in stats_aurcs.items()}),
+            "median_aurcs": median_aurcs
+            }

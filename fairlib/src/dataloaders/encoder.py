@@ -16,6 +16,9 @@ class text2id():
         elif args.encoder_architecture == "BERT":
             self.model_name = 'bert-base-cased'
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        elif args.encoder_architecture == "SciBERT":
+            self.model_name = 'allenai/scibert_scivocab_uncased'
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, model_max_length=512)
         else:
             raise NotImplementedError
 

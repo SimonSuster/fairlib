@@ -5,6 +5,7 @@ from .Bios import BiosDataset
 from .COMPAS import COMPASDataset
 from .ColoredMNIST import MNISTDataset
 from .EGBinaryGrade import EGBinaryGrade
+from .RoB import RoB
 from .FCL_BiosDataset import FCL_BiosDataset
 from .Moji import DeepMojiDataset
 from .Trustpilot import TrustpilotDataset
@@ -43,6 +44,7 @@ else:
 loader_map = {
     "moji": DeepMojiDataset,
     "egbinarygrade": EGBinaryGrade,
+    "rob": RoB,
     "bios": BiosDataset,
     "test": TestDataset,
     "sample": SampleDataset,

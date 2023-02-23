@@ -11,6 +11,8 @@ def get_main_model(args):
         model = MLP(args)
     elif args.encoder_architecture == "BERT":
         model = BERTClassifier(args)
+    elif args.encoder_architecture == "SciBERT":
+        model = BERTClassifier(args, model_name="allenai/scibert_scivocab_uncased")
     elif args.encoder_architecture == "MNIST":
         model = ConvNet(args)
     elif args.encoder_architecture == "EvidenceGRADEr":

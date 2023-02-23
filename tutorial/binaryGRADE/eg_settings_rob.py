@@ -1,6 +1,6 @@
 from fairlib.src.dataloaders.loaders.EGBinaryGrade import TOPICS
 
-task = "bi_class2_nonaugm_all"
+task = "bi_class_rob_nonaugm_all"
 data_dir = "/home/simon/Apps/SysRevData/data/derivations/all/splits/"
 results_dir = ""  # dev/...
 serialization_dir = "/home/simon/Apps/SysRevData/data/modelling/saved/"
@@ -26,7 +26,7 @@ args = {
     # "emb_size": len(NUM_TYPES),
     "emb_size": 3232,
     "n_hidden": 1,  # although in original EG, n_hidden=0, some de-biasing methods require n_hidden>0
-    "max_load": 30,
+    #"max_load": 30,
     "batch_size": batch_size,
     "test_batch_size": batch_size,
     "lr": lr,

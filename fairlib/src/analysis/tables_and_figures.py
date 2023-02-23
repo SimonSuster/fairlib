@@ -602,6 +602,49 @@ def make_plot(plot_df, figure_name=None, performance_name="Accuracy"):
         figure.savefig(figure_name, dpi=960, bbox_inches="tight")
 
 
+def make_plot_folds(results_folds, figure_name=None, performance_name="Accuracy"):
+    if performance_name in ["ece", "mce", "aurc", "brier"]:
+        # for these metrics, we use a positive interpretation
+        performance_name += "_pos"
+
+    df_dict = {**{"Models": []},
+               **{k: [] for k in results_folds["vanilla"].keys()}}
+    for method, d in results_folds.items():
+        df_dict["Models"].append(method)
+        for metric, val in d.items():
+            df_dict[metric].append(val)
+
+    plot_df = pd.DataFrame.from_dict(df_dict)
+    names_to_map = {"aurc_pos": "1 - aurc", "brier_pos": "1 - brier", "ece_pos": "1 - ece", "mce_pos": "1 - mce"}
+    plot_df.rename(columns=names_to_map, inplace=True)
+    if performance_name in names_to_map:
+        performance_name = performance_name.replace("_pos", "")
+        performance_name = "1 - " + performance_name
+
+    #figure = plt.figure(dpi=100)
+    figure, ax = plt.subplots()
+    #with sns.axes_style("white"):
+    sns.lineplot(
+            data=plot_df,
+            x=performance_name,
+            y="Fairness",
+            hue="Models",
+            markers=True,
+            style="Models",
+            ax=ax
+        )
+    ax.set_xlim(0.65, 0.85)
+    ax.set_ylim(0.75, 0.95)
+    #ax.set_xticks(range(1,))
+
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
+    plt.show()
+
+    if figure_name is not None:
+        figure.savefig(figure_name, dpi=960, bbox_inches="tight")
+
+
 def make_zoom_plot(
         plot_df, figure_name=None, performance_name="Accuracy",
         xlim=None, ylim=None,
