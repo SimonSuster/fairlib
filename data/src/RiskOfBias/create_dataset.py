@@ -2,7 +2,8 @@ import argparse
 import os
 
 from sklearn.model_selection import train_test_split
-from sysrev.dataset_construction.util.util import load_json, get_file_list, save_json
+
+from fairlib.src.utils import load_json, save_json, get_file_list
 
 
 def get_abstract(pmid, input_dir):
@@ -17,9 +18,9 @@ def main(input_dir, label_f, protected_label_f, output_dir):
     pmids_abstracts = {os.path.splitext(os.path.basename(fn))[0] for fn in get_file_list(f"{input_dir}/abstracts/")}
     labels = load_json(label_f)
     protected_labels = load_json(protected_label_f)
-    protected_labels = {k: v for k,v in protected_labels.items() if v is not None}
+    protected_labels = {k: v for k, v in protected_labels.items() if v is not None}
 
-    #assert len(labels.keys() - protected_labels.keys()) == 0
+    # assert len(labels.keys() - protected_labels.keys()) == 0
     pmids = list(labels.keys() & pmids_abstracts & protected_labels.keys())
     pmids_train, pmids_test = train_test_split(pmids, test_size=0.1, random_state=1)
     pmids_train, pmids_dev = train_test_split(pmids_train, test_size=0.1, random_state=1)
@@ -40,7 +41,8 @@ def main(input_dir, label_f, protected_label_f, output_dir):
             if len(set(labels[pmid][0].values()) - {"Unclear risk", "Low risk", "High risk"}) != 0:
                 print(f"Skipping {pmid} due to unknown labels.")
                 continue
-            dataset[split].append({"pmid": pmid, "abstract": abstract, "labels": labels[pmid][0], "protected_labels": protected_labels[pmid]})
+            dataset[split].append({"pmid": pmid, "abstract": abstract, "labels": labels[pmid][0],
+                                   "protected_labels": protected_labels[pmid]})
 
     save_json(dataset["train"], f"{output_dir}/train.json")
     print(f"Train set written to {output_dir}/train.json")
@@ -56,7 +58,8 @@ if __name__ == "__main__":
                         help='input dir: title and abtract files')
     parser.add_argument('-label_f', default="/home/simon/Apps/SysRevData/data/dataset/robotreviewer_train_data.json",
                         help='json file containing labels per each pmid')
-    parser.add_argument('-protected_label_f', default="/home/simon/Apps/SysRevData/data/dataset/robotreviewer_topics_train.json",
+    parser.add_argument('-protected_label_f',
+                        default="/home/simon/Apps/SysRevData/data/dataset/robotreviewer_topics_train.json",
                         help='json file containing protected labels per each pmid')
     parser.add_argument('-output_dir',
                         help="directory containing prepared data")

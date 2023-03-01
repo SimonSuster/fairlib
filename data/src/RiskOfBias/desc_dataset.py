@@ -4,12 +4,12 @@ from collections import Counter
 import numpy as np
 import scipy
 from sklearn.metrics import precision_score, recall_score, f1_score
-from sysrev.dataset_construction.util.util import load_json
 
 from fairlib.src.dataloaders.generalized_BT import get_data_distribution
 from fairlib.src.dataloaders.loaders.EGBinaryGrade import PROTECTED_LABEL_MAP_AREA, INV_PROTECTED_LABEL_MAP_AREA, \
     PROTECTED_LABEL_MAP_AGE, PROTECTED_LABEL_MAP_SEX, INV_PROTECTED_LABEL_MAP_AGE, INV_PROTECTED_LABEL_MAP_SEX
 from fairlib.src.dataloaders.loaders.RoB import label_map
+from fairlib.src.utils import load_json
 
 
 def random_baseline(f):
@@ -22,10 +22,9 @@ def random_baseline(f):
     y_true = np.array(y_true).astype(int)
     y_pred = np.random.randint(0, 2, len(y_true))
 
-
     return {"precision_macro": precision_score(y_true, y_pred, average="macro"),
-        "recall_macro": recall_score(y_true, y_pred, average="macro"),
-        "macro_fscore": f1_score(y_true, y_pred, average="macro")}
+            "recall_macro": recall_score(y_true, y_pred, average="macro"),
+            "macro_fscore": f1_score(y_true, y_pred, average="macro")}
 
 
 def freq_baseline(f):
@@ -37,12 +36,11 @@ def freq_baseline(f):
 
     y_true = np.array(y_true).astype(int)
     pred_label = Counter(y_true).most_common(1)[0][0]
-    y_pred = [pred_label]* len(y_true)
-
+    y_pred = [pred_label] * len(y_true)
 
     return {"precision_macro": precision_score(y_true, y_pred, average="macro"),
-        "recall_macro": recall_score(y_true, y_pred, average="macro"),
-        "macro_fscore": f1_score(y_true, y_pred, average="macro")}
+            "recall_macro": recall_score(y_true, y_pred, average="macro"),
+            "macro_fscore": f1_score(y_true, y_pred, average="macro")}
 
 
 def describe(input_dir, protected_group):
@@ -55,8 +53,8 @@ def describe(input_dir, protected_group):
                            "sex": PROTECTED_LABEL_MAP_SEX}[protected_group]
 
     inv_protected_label_map = {"area": INV_PROTECTED_LABEL_MAP_AREA,
-                           "age": INV_PROTECTED_LABEL_MAP_AGE,
-                           "sex": INV_PROTECTED_LABEL_MAP_SEX}[protected_group]
+                               "age": INV_PROTECTED_LABEL_MAP_AGE,
+                               "sex": INV_PROTECTED_LABEL_MAP_SEX}[protected_group]
 
     for dataset in (train_set, dev_set, test_set):
         abstracts = []
@@ -86,7 +84,8 @@ def describe(input_dir, protected_group):
         print(f"Abstracts stats: {abstract_desc}")
         data_dist = get_data_distribution(np.array(labels), np.array(protected_labels_idx))
         print(f"Label dist: {data_dist['y_dist']}")
-        protected_labels_dist = [(inv_protected_label_map[idx], round(data_dist["g_dist"][idx], 2)) for idx in data_dist["g_dist"].argsort()]
+        protected_labels_dist = [(inv_protected_label_map[idx], round(data_dist["g_dist"][idx], 2)) for idx in
+                                 data_dist["g_dist"].argsort()]
         print(f"Protected label dist: {protected_labels_dist}")
         print()
 

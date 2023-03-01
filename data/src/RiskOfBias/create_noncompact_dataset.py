@@ -1,5 +1,5 @@
-from sysrev.dataset_construction.util.util import load_json, save_json
 from fairlib.src.dataloaders.loaders.RoB import label_map, get_protected_group, get_protected_label_map
+from fairlib.src.utils import load_json, save_json
 
 
 def load_data(data_dir, split):
@@ -48,5 +48,3 @@ def main(data_dir):
 if __name__ == "__main__":
     main(data_dir="/home/simon/Apps/robotreviewer/rob_abstract_dataset_area/")
     main(data_dir="/home/simon/Apps/robotreviewer/rob_abstract_dataset_sex/")
-
-
