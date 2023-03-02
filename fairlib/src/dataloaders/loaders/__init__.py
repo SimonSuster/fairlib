@@ -6,6 +6,7 @@ from .COMPAS import COMPASDataset
 from .ColoredMNIST import MNISTDataset
 from .EGBinaryGrade import EGBinaryGrade
 from .RoB import RoB
+from .Sepsis import Sepsis
 from .FCL_BiosDataset import FCL_BiosDataset
 from .Moji import DeepMojiDataset
 from .Trustpilot import TrustpilotDataset

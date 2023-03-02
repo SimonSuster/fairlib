@@ -1,4 +1,5 @@
 import argparse
+import os
 import statistics
 
 import numpy as np
@@ -7,7 +8,6 @@ from sklearn.model_selection import train_test_split
 
 from fairlib.src.utils import PandasUtils, save_json
 
-PATH_MIMICIV = ''
 FNAME_DIAGNOSES = 'DIAGNOSES_ICD.csv.gz'
 FNAME_NOTES = 'NOTEEVENTS.csv.gz'
 FNAME_PATIENTS = 'PATIENTS.csv.gz'
@@ -18,7 +18,6 @@ ICD9_SEPSIS = "99591"
 ICD9_SEVERE_SEPSIS = "99592"
 ICD9_SEPTIC_SHOCK = "78552"
 
-PATH_MIMICIV_SEPSIS = ''
 FNAME_LABELS = 'sepsis_labels.json'
 FNAME_PROTECTED_LABELS = 'protected_labels.json'
 
@@ -45,12 +44,21 @@ def get_sex(note):
 
 class SepsisMIMIC:
     # this sepsis extraction procedure is largely based on: https://github.com/clips/rnn_expl_rules/blob/master/src/datasets/sepsis/MIMICIV_sepsis.py
-    def get_septic(self, sepsis_codes):
-        diag_df = PandasUtils.load_csv(FNAME_DIAGNOSES, PATH_MIMICIV)
-        admissions_df = PandasUtils.load_csv(FNAME_ADMISSIONS, PATH_MIMICIV)
-        patients_df = PandasUtils.load_csv(FNAME_PATIENTS, PATH_MIMICIV)
+    def get_septic(self, sepsis_codes, base_outdir, mimic_dir):
+        diag_df = PandasUtils.load_csv(FNAME_DIAGNOSES, mimic_dir)
+        admissions_df = PandasUtils.load_csv(FNAME_ADMISSIONS, mimic_dir)
+        patients_df = PandasUtils.load_csv(FNAME_PATIENTS, mimic_dir)
         hadm_ids = self.select_septic_hadm_id(diag_df, sepsis_codes)
-        self.get_septic_notes(hadm_ids, admissions_df, patients_df)
+
+        outdir = f"{base_outdir}/ethnicity/"
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        self.get_septic_notes(hadm_ids, admissions_df, patients_df, get_protected_label=get_ethnicity, outdir=outdir, mimic_dir=mimic_dir)
+
+        outdir = f"{base_outdir}/sex/"
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        self.get_septic_notes(hadm_ids, admissions_df, patients_df, get_protected_label=get_sex, outdir=outdir, mimic_dir=mimic_dir)
 
     def select_septic_hadm_id(self, diag_df, sepsis_codes):
         print("Getting septic HADM_IDs")
@@ -58,10 +66,10 @@ class SepsisMIMIC:
         # print("Septic HADM_IDs \n", list(hadm_ids))
         return list(hadm_ids)
 
-    def get_septic_notes(self, septic_hadm_ids, admissions_df, patients_df,
+    def get_septic_notes(self, septic_hadm_ids, admissions_df, patients_df, get_protected_label, outdir, mimic_dir,
                          fname_notes=FNAME_NOTES):
         print("Loading notes csv")
-        notes_df = PandasUtils.load_csv(fname_notes, PATH_MIMICIV)
+        notes_df = PandasUtils.load_csv(fname_notes, mimic_dir)
 
         print("Removing error entries")
         prev_len = notes_df.shape[0]
@@ -136,17 +144,16 @@ class SepsisMIMIC:
         for hadm_id in note_subset['HADM_ID'].tolist():
             note_subset_hadm = note_subset[note_subset['HADM_ID'] == hadm_id]
             cur_label = note_subset_hadm['SEPTIC'].item()
-            cur_ethn = get_ethnicity(note_subset_hadm)
-            cur_sex = get_sex(note_subset_hadm)
+            cur_protected_label = get_protected_label(note_subset_hadm)
             text = note_subset_hadm['TEXT'].item()
             dataset.append({"hadm_id": hadm_id, "x": text, "y": cur_label,
-                            "protected_label": {"Ethnicity": cur_ethn, "Sex": cur_sex}})
+                            "protected_label": cur_protected_label})
 
         train_set, test_set = train_test_split(dataset, test_size=0.1, random_state=1)
         train_set, dev_set = train_test_split(train_set, test_size=0.1, random_state=1)
-        save_json(train_set, f"{PATH_MIMICIV_SEPSIS}/train.json")
-        save_json(dev_set, f"{PATH_MIMICIV_SEPSIS}/dev.json")
-        save_json(test_set, f"{PATH_MIMICIV_SEPSIS}/test.json")
+        save_json(train_set, f"{outdir}/train.json")
+        save_json(dev_set, f"{outdir}/dev.json")
+        save_json(test_set, f"{outdir}/test.json")
 
 
 if __name__ == '__main__':
@@ -160,8 +167,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    PATH_MIMICIV = args.mimic_dir
-    PATH_MIMICIV_SEPSIS = args.sepsis_out_dir
+    mimic_dir = args.mimic_dir
+    base_outdir = args.sepsis_out_dir
 
     sepsis_obj = SepsisMIMIC()
-    sepsis_obj.get_septic([ICD9_SEPSIS, ICD9_SEVERE_SEPSIS, ICD9_SEPTIC_SHOCK])
+    sepsis_obj.get_septic([ICD9_SEPSIS, ICD9_SEVERE_SEPSIS, ICD9_SEPTIC_SHOCK], base_outdir, mimic_dir)
