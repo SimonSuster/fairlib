@@ -75,9 +75,7 @@ def final_results_df(
         calib_additional_metrics=[],
         do_calib_eval=False,
         calib_results_dict=None,
-        calib_metric_name="ece",
-        calib_selection_criterion="DTO"
-):
+        calib_metric_name="ece"):
     """Process the results to a single dataset from creating tables and plots.
 
     Args:
@@ -126,11 +124,7 @@ def final_results_df(
                 calib_metric_name_select = calib_metric_name
             calib_agg_dict = {
                 f"dev_{calib_metric_name_select}": ["mean", "std"],
-                "dev_fairness": ["mean", "std"],
-                "dev_performance": ["mean", "std"],
                 f"test_{calib_metric_name_select}": ["mean", "std"],
-                "test_performance": ["mean", "std"],
-                "test_fairness": ["mean", "std"],
                 "epoch": list,
                 "opt_dir": list,
             }
@@ -169,28 +163,22 @@ def final_results_df(
 
 
         # Select Pareto Frontiers
+        # TODO: add 3rd dim.?
         _pareto_flag = is_pareto_efficient(
             -1 * _df[["{}_{} mean".format(pareto_selection, Fairness_metric_name),
                       "{}_{} mean".format(pareto_selection, Performance_metric_name)]].to_numpy()
         )
-        if _do_calib_eval:
-            _calib_pareto_flag = is_pareto_efficient(
-                -1 * _calib_df[["{}_{} mean".format(pareto_selection, Fairness_metric_name),
-                          "{}_{} mean".format(pareto_selection, calib_metric_name_select)]].to_numpy()
-            )
 
         _df["is_pareto"] = _pareto_flag
         if _do_calib_eval:
-            _calib_df["is_pareto"] = _calib_pareto_flag
+            _calib_df["is_pareto"] = _pareto_flag
 
         if pareto:
             _pareto_df = _df[_pareto_flag].copy()
-            if _do_calib_eval:
-                _calib_pareto_df = _calib_df[_calib_pareto_flag].copy()
+            _calib_pareto_df = _calib_df[_pareto_flag].copy()
         else:
             _pareto_df = _df.copy()
-            if _do_calib_eval:
-                _calib_pareto_df = _calib_df.copy()
+            _calib_pareto_df = _calib_df.copy()
 
         # Rename and reorder the columns
         selected_columns = ["{}_{} {}".format(phase, metric, value) for phase in ["test", "dev"] for metric in
@@ -199,10 +187,9 @@ def final_results_df(
         selected_columns.append("opt_dir list")
         selected_columns.append("is_pareto")
 
-
         if _do_calib_eval:
             calib_selected_columns = ["{}_{} {}".format(phase, metric, value) for phase in ["test", "dev"] for metric in
-                            [calib_metric_name_select, Fairness_metric_name] for value in ["mean", "std"]]
+                            [calib_metric_name_select] for value in ["mean", "std"]]
             calib_selected_columns.append("epoch list")
             calib_selected_columns.append("opt_dir list")
             calib_selected_columns.append("is_pareto")
@@ -211,12 +198,6 @@ def final_results_df(
         additional_metric_columns = ["{} {}".format(metric, value) for metric in additional_metrics for value in
                                      ["mean", "std"]]
         selected_columns = selected_columns + additional_metric_columns
-
-        if _do_calib_eval:
-            calib_additional_metric_columns = ["{} {}".format(metric, value) for metric in calib_additional_metrics for value in
-                                         ["mean", "std"]]
-
-            calib_selected_columns = calib_selected_columns + calib_additional_metric_columns
 
         _pareto_df = _pareto_df[selected_columns].copy()
         _pareto_df["Models"] = [key] * len(_pareto_df)
@@ -227,18 +208,11 @@ def final_results_df(
         _final_DTO = DTO(
             fairness_metric=list(_pareto_df["dev_{} mean".format(Fairness_metric_name)]),
             performacne_metric=list(_pareto_df["dev_{} mean".format(Performance_metric_name)]),
-            utopia_fairness=1, utopia_performance=1
+            calibration_metric=list(_calib_pareto_df["dev_{} mean".format(calib_metric_name_select)]),
+            utopia_fairness=1, utopia_performance=1, utopia_calibration=1
         )
         _pareto_df["dev_DTO mean"] = _final_DTO
-
-        if _do_calib_eval:
-            _calib_final_DTO = DTO(
-                fairness_metric=list(_calib_pareto_df["dev_{} mean".format(Fairness_metric_name)]),
-                performacne_metric=list(_calib_pareto_df["dev_{} mean".format(Performance_metric_name)]),
-                calibration_metric=list(_calib_pareto_df["dev_{} mean".format(calib_metric_name_select)]),
-                utopia_fairness=1, utopia_performance=1
-            )
-            _calib_pareto_df["dev_DTO mean"] = _calib_final_DTO
+        _calib_pareto_df["dev_DTO mean"] = _final_DTO
 
         # Model selection
         if selection_criterion is not None:
@@ -247,23 +221,10 @@ def final_results_df(
             else:
                 selected_epoch_id = np.argmax(_pareto_df["dev_{} mean".format(selection_criterion)])
             _pareto_df = _pareto_df.iloc[[selected_epoch_id]].copy()
-
+            if do_calib_eval:
+                _calib_pareto_df = _calib_pareto_df.iloc[[selected_epoch_id]].copy()
         df_list.append(_pareto_df)
-
-
-        if _do_calib_eval:
-            # Model selection: calibration
-            if calib_selection_criterion is not None:
-                if calib_selection_criterion == "DTO":
-                    calib_selected_epoch_id = np.argmin(_calib_pareto_df["dev_{} mean".format(calib_selection_criterion)])
-                elif calib_selection_criterion in ["ece", "mce", "aurc", "fairness", "performance"]:
-                    # we use positive-interpretation of all these metrics, so just argmax
-                    calib_selected_epoch_id = np.argmax(_calib_pareto_df["dev_{} mean".format(calib_selection_criterion)])
-                else:
-                    raise NotImplementedError
-                _calib_pareto_df = _calib_pareto_df.iloc[[calib_selected_epoch_id]].copy()
-                print(f"best selected model/hyperparam based on {calib_selection_criterion}: {_calib_pareto_df['opt_dir list'].tolist()[0]}")
-
+        if do_calib_eval:
             calib_df_list.append(_calib_pareto_df)
 
     final_df = pd.concat(df_list)
@@ -276,9 +237,15 @@ def final_results_df(
         _over_DTO = DTO(
             fairness_metric=list(final_df["test_{} mean".format(Fairness_metric_name)]),
             performacne_metric=list(final_df["test_{} mean".format(Performance_metric_name)]),
-            utopia_fairness=1, utopia_performance=1
+            calibration_metric=list(calib_final_df["test_{} mean".format(calib_metric_name_select)]),
+            utopia_fairness=1, utopia_performance=1, utopia_calibration=1
         )
         final_df["DTO"] = _over_DTO
+        calib_final_df["DTO"] = _over_DTO
+        calib_evaluation_cols = list(calib_final_df.keys())[1:(9 if return_dev else 5)]
+        #calib_reproducibility_cols = ["epoch list", "opt_dir list"] if return_conf else []
+        calib_final_df = calib_final_df[calib_evaluation_cols + ["DTO"] + [
+            "is_pareto"] + additional_metric_columns].copy()
 
         if save_conf_dir is not None:
             for (_model, _epoch_list, opt_list) in final_df[["Models", "epoch list", "opt_dir list"]].values:
@@ -292,19 +259,6 @@ def final_results_df(
         final_df = final_df[["Models"] + evaluation_cols + ["DTO"] + reproducibility_cols + [
             "is_pareto"] + additional_metric_columns].copy()
 
-    if do_calib_eval:
-        if calib_selection_criterion is not None:
-            _calib_over_DTO = DTO(
-                fairness_metric=list(calib_final_df["test_{} mean".format(Fairness_metric_name)]),
-                performacne_metric=list(calib_final_df["test_{} mean".format(Performance_metric_name)]),
-                calibration_metric=list(calib_final_df["test_{} mean".format(calib_metric_name_select)]),
-                utopia_fairness=1, utopia_performance=1
-            )
-            calib_final_df["DTO"] = _calib_over_DTO
-            calib_evaluation_cols = list(calib_final_df.keys())[1:(9 if return_dev else 5)]
-            calib_reproducibility_cols = ["epoch list", "opt_dir list"] if return_conf else []
-            calib_final_df = calib_final_df[["Models"] + calib_evaluation_cols + ["DTO"] + calib_reproducibility_cols + [
-                "is_pareto"] + additional_metric_columns].copy()
 
     return (final_df, calib_final_df if do_calib_eval else None)
 

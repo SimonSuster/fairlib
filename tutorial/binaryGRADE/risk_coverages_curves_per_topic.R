@@ -4,11 +4,13 @@ library(stringr)
 
 # EVIDENCEGRADER
 #criteria = c("binaryGRADE", "imprecision", "risk of bias", "indirectness", "inconsistency", "publication bias")
-criterion = "binaryGRADE"
-models = c("BTDownsampling", "BTResampling", "BTReweighting", "ADV", "vanilla", "DADV", "FCL")
-#models = c("vanilla")
+#criterion = "binaryGRADE"
+criterion = "Sepsis"
+#models = c("BTDownsampling", "BTResampling", "BTReweighting", "ADV", "vanilla", "DADV", "FCL")
+models = c("vanilla")
 plot_list = vector("list", length(models))
-file1 = paste("/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_", criterion, "_debias.csv", sep="")
+#file1 = paste("/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_", criterion, "_debias.csv", sep="")
+file1 = paste("/home/simon/Apps/SysRevData/data/modelling/plots/sepsis/sepsis_aurc_raw_", criterion, "_debias.csv", sep="")
 f1 = read.table(file1, skip = 0, sep = "\t", header=TRUE, na.strings = "NA", dec = ".", strip.white = TRUE)
 all = data.frame(f1)
 all$model=factor(all$model)
@@ -50,23 +52,26 @@ multiplot(plotlist=plot_list, cols=3)
 dev.off()
 
 # EVIDENCEGRADER single criterion, all
-criterion = "binaryGRADE"
+#criterion = "binaryGRADE"
+criterion = "Sepsis"
 
-file1 = paste("/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_", criterion, "_debias.csv", sep="")
+#file1 = paste("/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_", criterion, "_debias.csv", sep="")
+file1 = paste("/home/simon/Apps/SysRevData/data/modelling/plots/sepsis/sepsis_aurc_raw_", criterion, "_debias.csv", sep="")
 f1 = read.table(file1, skip = 0, sep = "\t", header=TRUE, na.strings = "NA", dec = ".", strip.white = TRUE)
 all = data.frame(f1)
 all$model=factor(all$model)
 all$topic=factor(all$topic)
 all$criterion=factor(all$criterion)
-#topic_name = "all"
+topic_name = "all"
 #topic_name = "Neurology"
-topic_name = "Cancer"
+#topic_name = "Cancer"
 #topic_name = "Kidney disease"
 #topic_name = "Gynaecology"
 #topic_name = "Skin disorders"
 #topic_name = "Child health"
 #generally_bad_topics = c("Gynaecology", "Skin disorders", "Wounds", "Kidney disease", "Neurology")
-all_subset = subset(all, all$model=="vanilla" | all$model=="ADV")
+#all_subset = subset(all, all$model=="vanilla" | all$model=="ADV")
+all_subset = subset(all, all$model=="SexvanillaBlueBERT" | all$model=="SexvanillaSciBERT" | all$model=="SexvanillaClinicalBERT")
 all_subset = subset(all_subset, all_subset$topic==topic_name)
 
 my = ggplot(data = all_subset, aes(x = coverage, y = risk)) + geom_line(aes(colour = str_wrap(model, 15)), size = 0.5) + theme_bw() + ggtitle(paste(criterion, topic_name, sep=": ")) +
@@ -80,5 +85,5 @@ my = ggplot(data = all_subset, aes(x = coverage, y = risk)) + geom_line(aes(colo
           legend.text = element_text(size = 12),
           #legend.position = "none",
           panel.border = element_blank())
-f_out=paste("/home/simon/Apps/SysRevData/data/dataset/plots/risk_coverages_curves/evidencegrader/debias/aurc_raw_compare", gsub(" ", "_", criterion), topic_name, ".png", sep="")
+f_out=paste("/home/simon/Apps/SysRevData/data/dataset/plots/risk_coverages_curves/sepsis/debias/aurc_raw_compare", gsub(" ", "_", criterion), topic_name, ".png", sep="")
 ggsave(f_out, width = 8, height = 5)

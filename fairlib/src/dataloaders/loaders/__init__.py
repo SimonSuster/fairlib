@@ -46,6 +46,7 @@ loader_map = {
     "moji": DeepMojiDataset,
     "egbinarygrade": EGBinaryGrade,
     "rob": RoB,
+    "sepsis": Sepsis,
     "bios": BiosDataset,
     "test": TestDataset,
     "sample": SampleDataset,

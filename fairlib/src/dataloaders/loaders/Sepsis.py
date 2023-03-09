@@ -30,7 +30,7 @@ class Sepsis(BaseDataset):
             self.X.append(i["x"])
             self.y.append(label_map(i["y"]))
 
-        if self.args.encoder_architecture in {"BERT", "SciBERT"}:
+        if self.args.encoder_architecture in {"BERT", "SciBERT", "BlueBERT", "ClinicalBERT"}:
             self.X = self.args.text_encoder.encoder(self.X)
         else:
             raise NotImplementedError

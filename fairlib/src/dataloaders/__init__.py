@@ -43,7 +43,7 @@ def get_dataloaders(args):
 
     if args.encoder_architecture in ["Fixed", "MNIST", "EvidenceGRADEr"]:
         pass
-    elif args.encoder_architecture in {"BERT", "SciBERT"}:
+    elif args.encoder_architecture in {"BERT", "SciBERT", "BlueBERT", "ClinicalBERT"}:
         # Init the encoder form text to idx.
         args.text_encoder = text2id(args)
     else:

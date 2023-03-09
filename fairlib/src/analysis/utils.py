@@ -82,7 +82,8 @@ def l2norm(matrix_1, matrix_2):
     return np.power(np.sum(np.power(matrix_1 - matrix_2, 2), axis=1), 0.5)
 
 
-def DTO(fairness_metric, performacne_metric, calibration_metric=None, utopia_fairness=None, utopia_performance=None):
+def DTO(fairness_metric, performacne_metric, calibration_metric=None, utopia_fairness=None, utopia_performance=None,
+        utopia_calibration=None):
     """calculate DTO for each condidate model
 
     Args:
@@ -96,22 +97,26 @@ def DTO(fairness_metric, performacne_metric, calibration_metric=None, utopia_fai
         calibration_metric = np.array(calibration_metric)
 
     # Best metric
-    if (utopia_performance is None):
+    if utopia_performance is None:
         utopia_performance = np.max(performacne_metric)
-    if (utopia_fairness is None):
+    if utopia_fairness is None:
         utopia_fairness = np.max(fairness_metric)
+    if utopia_calibration is None:
+        utopia_calibration = np.max(calibration_metric)
 
     # Normalize
     performacne_metric = performacne_metric / utopia_performance
     fairness_metric = fairness_metric / utopia_fairness
     if calibration_metric is not None:
-        calibration_metric = calibration_metric / utopia_fairness
+        calibration_metric = calibration_metric / utopia_calibration
 
     # Reshape and concatnate
     performacne_metric = performacne_metric.reshape(-1, 1)
     fairness_metric = fairness_metric.reshape(-1, 1)
     if calibration_metric is not None:
         calibration_metric = calibration_metric.reshape(-1, 1)
+
+    if calibration_metric is not None:
         normalized_metric = np.concatenate([performacne_metric, fairness_metric, calibration_metric], axis=1)
     else:
         normalized_metric = np.concatenate([performacne_metric, fairness_metric], axis=1)
@@ -354,7 +359,8 @@ def get_calib_scores(exp):
     return epoch_scores
 
 
-def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=False):
+def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=False, do_calib_eval=True,
+                     calib_metric_name="aurc"):
     """given the log path for a exp, read log and return the dev&test performacne, fairness, and DTO
 
     Args:
@@ -369,6 +375,23 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=
     epoch_id = []
     epoch_scores_dev = {"performance": [], "fairness": []}
     epoch_scores_test = {"performance": [], "fairness": []}
+
+    if do_calib_eval:
+        epoch_calib_scores = get_calib_scores(exp)
+        _test_selected_score = epoch_calib_scores[f"test_{calib_metric_name}"]
+
+        if calib_metric_name in ["ece", "mce", "aurc", "brier"]:
+            # select positive interpretation of the lower-is-better metric
+            calib_metric_name_select = f"{calib_metric_name}_pos"
+        else:
+            calib_metric_name_select = calib_metric_name
+
+        dev_selected_score = epoch_calib_scores[f"dev_{calib_metric_name_select}"]
+        test_selected_score = epoch_calib_scores[f"test_{calib_metric_name_select}"]
+    else:
+        epoch_calib_scores = None
+        dev_selected_score, test_selected_score = None, None
+
     for epoch_result_dir in exp["dir"]:
         #print(epoch_result_dir)
         epoch_result = torch.load(epoch_result_dir)
@@ -392,9 +415,11 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=
                 epoch_scores_test[_test_keys] = (
                         epoch_scores_test.get(_test_keys, []) + [epoch_result["test_evaluations"][_test_keys]])
 
-    # Calculate the DTO for dev and test 
-    dev_DTO = DTO(fairness_metric=epoch_scores_dev["fairness"], performacne_metric=epoch_scores_dev["performance"])
-    test_DTO = DTO(fairness_metric=epoch_scores_test["fairness"], performacne_metric=epoch_scores_test["performance"])
+    # Calculate the DTO for dev and test; include 3rd dimension, e.g. calibration perf
+    dev_DTO = DTO(fairness_metric=epoch_scores_dev["fairness"], performacne_metric=epoch_scores_dev["performance"],
+                  calibration_metric=dev_selected_score)
+    test_DTO = DTO(fairness_metric=epoch_scores_test["fairness"], performacne_metric=epoch_scores_test["performance"],
+                   calibration_metric=test_selected_score)
 
     epoch_results_dict = {
         "epoch": epoch_id,
@@ -411,7 +436,7 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=
 
     epoch_scores = pd.DataFrame(epoch_results_dict)
 
-    return epoch_scores
+    return epoch_scores, epoch_calib_scores
 
 
 def retrive_all_exp_results(exp, GAP_metric_name, Performance_metric_name, index_column_names,
@@ -467,7 +492,7 @@ def retrive_exp_results(
     """
 
     # Get scores
-    epoch_scores = get_model_scores(
+    epoch_scores, epoch_calib_scores = get_model_scores(
         exp=exp, GAP_metric=GAP_metric_name,
         Performance_metric=Performance_metric_name,
         keep_original_metrics=keep_original_metrics,
@@ -492,48 +517,10 @@ def retrive_exp_results(
         _exp_results[key] = selected_epoch_scores[key]
 
     _exp_results["opt_dir"] = exp["opt_dir"]
-    _exp_results["epoch"] = selected_epoch_id
+    _exp_results["epoch"] = selected_epoch_scores["epoch"]
 
     if do_calib_eval:
-        epoch_calib_scores = get_calib_scores(exp)
-
-        _test_selected_score = epoch_calib_scores[f"test_{calib_metric_name}"]
-
-        if calib_metric_name in ["ece", "mce", "aurc", "brier"]:
-            # select positive interpretation of the lower-is-better metric
-            calib_metric_name_select = f"{calib_metric_name}_pos"
-        else:
-            calib_metric_name_select = calib_metric_name
-
-        dev_selected_score = epoch_calib_scores[f"dev_{calib_metric_name_select}"]
-        test_selected_score = epoch_calib_scores[f"test_{calib_metric_name_select}"]
-
-        if len(epoch_scores.dev_fairness) != len(dev_selected_score):
-            dev_fairness = epoch_scores.dev_fairness[epoch_calib_scores.epoch]
-        else:
-            dev_fairness = epoch_scores.dev_fairness
-        if len(epoch_scores.test_fairness) != len(test_selected_score):
-            test_fairness = epoch_scores.test_fairness[epoch_calib_scores.epoch]
-        else:
-            test_fairness = epoch_scores.test_fairness
-
-        dev_calib_DTO = DTO(fairness_metric=dev_fairness, performacne_metric=dev_selected_score)
-        test_calib_DTO = DTO(fairness_metric=test_fairness, performacne_metric=test_selected_score)
-
-        # selection for calibration performance
-        if calib_selection_criterion == "DTO":
-            calib_selected_epoch_id = np.argmin(dev_calib_DTO)
-        elif calib_selection_criterion in ["ece", "mce", "aurc", "brier", "fairness", "performance"]:
-            # we use positive-interpretation of all these metrics, so just argmax
-            calib_selected_epoch_id = np.argmax(dev_selected_score)
-        else:
-            raise NotImplementedError
-
-        calib_selected_epoch_scores = epoch_calib_scores.iloc[calib_selected_epoch_id]
-        # this is potentially different from selected_epoch_scores above as we are selecting based on best calib epoch
-        # need this to get fairness result to include in the calib results
-        _selected_epoch_scores = epoch_scores.iloc[calib_selected_epoch_id]
-        # Get hyperparameters for this epoch
+        calib_selected_epoch_scores = epoch_calib_scores.iloc[selected_epoch_id]
         _calib_exp_results = {}
         for hyperparam_key in index_column_names:
             _calib_exp_results[hyperparam_key] = _exp_opt[hyperparam_key]
@@ -541,11 +528,8 @@ def retrive_exp_results(
         # Merge opt with scores
         for key in calib_selected_epoch_scores.keys():
             _calib_exp_results[key] = calib_selected_epoch_scores[key]
-        for key in ["dev_fairness", "test_fairness", "dev_performance", "test_performance"]:
-            _calib_exp_results[key] = _selected_epoch_scores[key]
 
         _calib_exp_results["opt_dir"] = exp["opt_dir"]
-        _calib_exp_results["epoch"] = calib_selected_epoch_id
 
     return (_exp_results, _calib_exp_results if do_calib_eval else None)
 

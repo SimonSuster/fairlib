@@ -19,6 +19,12 @@ class text2id():
         elif args.encoder_architecture == "SciBERT":
             self.model_name = 'allenai/scibert_scivocab_uncased'
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, model_max_length=512)
+        elif args.encoder_architecture == "BlueBERT":
+            self.model_name = 'bionlp/bluebert_pubmed_mimic_uncased_L-24_H-1024_A-16'
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, model_max_length=512)
+        elif args.encoder_architecture == "ClinicalBERT":
+            self.model_name = 'emilyalsentzer/Bio_ClinicalBERT'
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, model_max_length=512)
         else:
             raise NotImplementedError
 
