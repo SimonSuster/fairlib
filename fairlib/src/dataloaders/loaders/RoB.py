@@ -3,9 +3,7 @@ from pathlib import Path
 from sysrev.dataset_construction.util.util import load_json
 from sysrev.modelling.allennlp.util import ROB_MAPPING
 
-from .EGBinaryGrade import PROTECTED_LABEL_MAP_AREA, PROTECTED_LABEL_MAP_AGE, PROTECTED_LABEL_MAP_SEX, \
-    INV_PROTECTED_LABEL_MAP_AREA, INV_PROTECTED_LABEL_MAP_AGE, INV_PROTECTED_LABEL_MAP_SEX
-from ..utils import BaseDataset
+from ..utils import BaseDataset, get_protected_label_map
 
 
 def binary_mapping_criteria(label):
@@ -36,20 +34,6 @@ def get_protected_group(data_dir):
         raise ValueError
 
     return protected_group
-
-
-def get_protected_label_map(protected_group):
-    return {
-        "area": PROTECTED_LABEL_MAP_AREA,
-        "age": PROTECTED_LABEL_MAP_AGE,
-        "sex": PROTECTED_LABEL_MAP_SEX}[protected_group]
-
-
-def get_inv_protected_label_map(protected_group):
-    return {
-        "area": INV_PROTECTED_LABEL_MAP_AREA,
-        "age": INV_PROTECTED_LABEL_MAP_AGE,
-        "sex": INV_PROTECTED_LABEL_MAP_SEX}[protected_group]
 
 
 class RoB(BaseDataset):

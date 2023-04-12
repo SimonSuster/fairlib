@@ -1,9 +1,35 @@
 import numpy as np
 import pandas as pd
 import torch
+from sysrev.modelling.allennlp.my_project.dataset_reader import NUMERICAL_FEATS, NUMERICAL_FEATS_PER_OUTCOME
 
 from .BT import get_weights, get_sampled_indices
 from .generalized_BT import get_data_distribution, manipulate_data_distribution
+
+
+CAT_TYPES = ["review_type", "type_effect", "topics"]
+TXT_TYPES = ["full_abstract_txt", "abstract_conclusion_txt", "plain_language_summary_txt", "authors_conclusions_txt"]
+NUM_TYPES = NUMERICAL_FEATS + NUMERICAL_FEATS_PER_OUTCOME
+TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", "Complementary & alternative medicine",
+          "Consumer & communication strategies", "Dentistry & oral health",
+          "Developmental, psychosocial & learning problems",
+          "Ear, nose & throat", "Effective practice & health systems", "Endocrine & metabolic", "Eyes & vision",
+          "Gastroenterology & hepatology", "Genetic disorders", "Gynaecology", "Health & safety at work",
+          "Heart & circulation",
+          "Infectious disease", "Insurance medicine", "Kidney disease", "Lungs & airways", "Mental health",
+          "Neonatal care",
+          "Neurology", "Orthopaedics & trauma", "Pain & anaesthesia", "Pregnancy & childbirth", "Public health",
+          "Rheumatology", "Skin disorders", "Tobacco, drugs & alcohol", "Urology", "Wounds"]
+PROTECTED_LABEL_MAP_AREA = dict(zip(TOPICS, list(range(len(TOPICS)))))
+INV_PROTECTED_LABEL_MAP_AREA = {v: k for k, v in PROTECTED_LABEL_MAP_AREA.items()}
+AGE = ['Child 6-12 years', 'Aged 65-79 years', 'Middle Aged 45-64 years', 'Adolescent 13-18 years', 'Adult 19-44 years',
+       'Child, Preschool 2-5 years', 'Birth to 1 mo', 'Young Adult 19-24 years', 'Aged 80 and over 80+ years', 'Infant 1 to 23 mo']
+PROTECTED_LABEL_MAP_AGE = dict(zip(AGE, list(range(len(AGE)))))
+INV_PROTECTED_LABEL_MAP_AGE = {v: k for k, v in PROTECTED_LABEL_MAP_AGE.items()}
+SEX = ["Male", "Female", "Male and Female"]
+PROTECTED_LABEL_MAP_SEX = dict(zip(SEX, list(range(len(SEX)))))
+INV_PROTECTED_LABEL_MAP_SEX = {v: k for k, v in PROTECTED_LABEL_MAP_SEX.items()}
+
 
 
 def full_label_data(df, tasks):
@@ -74,7 +100,7 @@ class BaseDataset(torch.utils.data.Dataset):
     def manipulate_data_distribution(self):
         if self.args.GBT and self.split == "train":
             # Get data distribution
-            distribution_dict = get_data_distribution(y_data=self.y, g_data=self.protected_label)
+            distribution_dict = get_data_distribution(y_data=self.y, g_data=self.protected_label, y_size=2, g_size=self.args.num_groups)
 
             selected_index = manipulate_data_distribution(
                 default_distribution_dict=distribution_dict,
@@ -178,3 +204,21 @@ class BaseDataset(torch.utils.data.Dataset):
 
             # Reassign labels
             self.regression_label, self.y = np.array(self.y), bin_labels
+
+
+def get_protected_label_map(protected_group):
+    return {
+        "area": PROTECTED_LABEL_MAP_AREA,
+        "age": PROTECTED_LABEL_MAP_AGE,
+        "sex": PROTECTED_LABEL_MAP_SEX}[protected_group]
+
+
+def get_inv_protected_label_map(protected_group):
+    return {
+        "area": INV_PROTECTED_LABEL_MAP_AREA,
+        "age": INV_PROTECTED_LABEL_MAP_AGE,
+        "sex": INV_PROTECTED_LABEL_MAP_SEX}[protected_group]
+
+
+def get_num_groups(attribute):
+    return len({"area": TOPICS, "sex": SEX, "age": AGE}[attribute])

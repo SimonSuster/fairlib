@@ -1,17 +1,15 @@
 import csv
 import difflib
+import json
 import os
 import random
-
-import torch
-
-from os.path import exists, join, realpath
-from os import makedirs
-import json
 from collections import OrderedDict, Counter
+from os import makedirs
+from os.path import exists, join, realpath
 
 import numpy as np
 import pandas as pd
+import torch
 
 
 class PandasUtils:
@@ -43,7 +41,7 @@ class FileUtils:
 
         with open(realpath(join(dir_out, fname)), 'w') as f:
             for term in data_list:
-                f.write(term+'\n')
+                f.write(term + '\n')
 
     @staticmethod
     def read_list(fname, dir_in):
@@ -207,3 +205,103 @@ def read_csv(f, keys=None, delimiter=","):
         for row in reader:
             yield row
 
+
+def print_tsv(data_dist, inv_protected_label_map, protected_group, inv_label_mapping):
+    counts = (data_dist["joint_dist"] * data_dist["N"]).astype("int").transpose()
+    row_str = f"\t{inv_label_mapping[0]}\t{inv_label_mapping[1]}\tTotal"
+    print(row_str)
+    for g_idx, row in enumerate(counts):
+        g_name = inv_protected_label_map[g_idx]
+        if protected_group == "area":
+            g_name = f"{g_name[:10]}..."
+        row_str = f"{g_name}\t"
+        row_str += "\t".join(row.astype(str))
+        row_str += f"\t{sum(row)}"
+        print(row_str)
+
+    y_totals = (data_dist["y_dist"] * data_dist["N"]).astype("int")
+    row_str = "Total\t" + "\t".join(y_totals.astype(str)) + f"\t{int(data_dist['N'])}"
+    print(row_str)
+
+
+def extract_name(s):
+    if "vanilla" in s:
+        return "vanilla"
+    elif "Resampling" in s:
+        return "Resampling"
+    elif "Reweighting" in s:
+        return "Reweighting"
+    elif "Downsampling" in s:
+        return "Downsampling"
+    elif "DADV" in s:
+        return "DAdv"
+    elif "ADV" in s:
+        return "Adv"
+    elif "FCL" in s:
+        return "FCL"
+    else:
+        raise KeyError
+
+
+def csv_results_to_tex_table(f, f_calib):
+    """
+    :param f: csv file with results
+    :param f_calib: csv file with calibration results
+    """
+    def pretty_str(i):
+        if i > 0:
+            return f"\\textcolor{{green}}{{+{i}}}"
+        else:
+            if i == 0:
+                return f"\\textcolor{{red}}{{-{i}}}"
+            else:
+                return f"\\textcolor{{red}}{{{i}}}"
+
+    r = read_csv(f)
+    r_calib = read_csv(f_calib)
+    vanilla_results = {}
+    for row, row_calib in zip(r, r_calib):
+        model_name = extract_name(row["Models"])
+        if model_name == "vanilla":
+            vanilla_results["test_performance mean"] = float(row["test_performance mean"])
+            vanilla_results["test_fairness mean"] = float(row["test_fairness mean"])
+            vanilla_results["test_aurc_pos mean"] = float(row_calib["test_aurc_pos mean"])
+            vanilla_results["test_mce_pos mean"] = float(row_calib["test_mce_pos mean"])
+            vanilla_results["test_ece_pos mean"] = float(row_calib["test_ece_pos mean"])
+
+    r = read_csv(f)
+    r_calib = read_csv(f_calib)
+    d = {}
+    for row, row_calib in zip(r, r_calib):
+        model_name = extract_name(row["Models"])
+        if model_name == "vanilla":
+            test_performance = round(float(row["test_performance mean"]), 3)
+            test_fairness = round(float(row["test_fairness mean"]), 3)
+            test_aurc_pos = round(float(row_calib["test_aurc_pos mean"]), 3)
+            test_mce_pos = round(float(row_calib["test_mce_pos mean"]), 3)
+            test_ece_pos = round(float(row_calib["test_ece_pos mean"]), 3)
+            d[model_name] = f'& {model_name} & {test_performance} & {test_fairness} & {test_aurc_pos} & {test_mce_pos} & {test_ece_pos} \\\\'
+        else:
+            test_performance = round(float(row["test_performance mean"]) - vanilla_results["test_performance mean"], 3)
+            test_fairness = round(float(row["test_fairness mean"]) - vanilla_results["test_fairness mean"], 3)
+            test_aurc_pos = round(float(row_calib["test_aurc_pos mean"]) - vanilla_results["test_aurc_pos mean"], 3)
+            test_mce_pos = round(float(row_calib["test_mce_pos mean"]) - vanilla_results["test_mce_pos mean"], 3)
+            test_ece_pos = round(float(row_calib["test_ece_pos mean"]) - vanilla_results["test_ece_pos mean"], 3)
+            d[model_name] = f'& {model_name} & {pretty_str(test_performance)} & {pretty_str(test_fairness)} & {pretty_str(test_aurc_pos)} & {pretty_str(test_mce_pos)} & {pretty_str(test_ece_pos)} \\\\'
+
+    for model_name in ["vanilla", "Downsampling", "Resampling", "Reweighting", "Adv", "DAdv", "FCL"]:
+        print(d[model_name])
+
+
+def folds_results_to_csv(results, f, f_calib):
+    with open(f, "w") as fh_out:
+        writer = csv.writer(fh_out)
+        writer.writerow(("Models", "test_performance mean", "test_fairness mean"))
+        for model, d in results.items():
+            writer.writerow((model, d["macro_fscore"], d["Fairness"]))
+
+    with open(f_calib, "w") as fh_calib_out:
+        writer_calib = csv.writer(fh_calib_out)
+        writer_calib.writerow(("Models", "test_aurc_pos mean", "test_mce_pos mean", "test_ece_pos mean"))
+        for model, d in results.items():
+            writer_calib.writerow((model, d["aurc_pos"], d["mce_pos"], d["ece_pos"]))

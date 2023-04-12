@@ -12,9 +12,9 @@ from sysrev.modelling.allennlp.analyse import get_prob_high_idx, get_entire_band
 from sysrev.modelling.allennlp.util_stat import gap_eval_scores
 from yaml.loader import SafeLoader
 
-from fairlib.src.dataloaders.loaders.EGBinaryGrade import INV_PROTECTED_LABEL_MAP_AREA
-from fairlib.src.dataloaders.loaders.RoB import get_protected_group, get_protected_label_map, \
-    get_inv_protected_label_map
+from fairlib.src.dataloaders.loaders.RoB import get_protected_group
+from fairlib.src.dataloaders.utils import get_protected_label_map, get_inv_protected_label_map, \
+    INV_PROTECTED_LABEL_MAP_AREA
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
@@ -177,10 +177,10 @@ def get_calib_scores_folds(results_per_fold):
     calib_results = {}
 
     for fold_n, d in results_per_fold.items():
-        for method, df in d["EG_calib_results"].items():
-            method = method[3:]
+        for _method, df in d["EG_calib_results"].items():
+            method = _method[3:]
             if method not in raw_data:
-                raw_data[method] = {"probs": [], "labels": [], "preds": [], "private_labels": [], "vocab_f": None}
+                raw_data[method] = {"probs": [], "labels": [], "preds": [], "private_labels": [], "vocab_f": None, "test_DTO": []}
             raw_data[method]["probs"].extend(df["test_test_probs"].to_list()[0])
             raw_data[method]["labels"].extend(df["test_test_labels"].to_list()[0])
             raw_data[method]["preds"].extend(df["test_test_predictions"].to_list()[0])
@@ -189,15 +189,17 @@ def get_calib_scores_folds(results_per_fold):
                 raw_data[method]["vocab_f"] = df["test_vocab_f"].to_list()[0]
             else:
                 assert raw_data[method]["vocab_f"] == df["test_vocab_f"].to_list()[0]
+            raw_data[method]["test_DTO"].append(d["EG_results"][_method]["test_DTO"])
 
     for method, d in raw_data.items():
         results = calib_eval(d["probs"], d["labels"], d["preds"], d["private_labels"], d["vocab_f"], None, "area")
         _, _, perf_results_per_group = gap_eval_scores(d["preds"], d["labels"], d["private_labels"])
         perf_results_per_group = {INV_PROTECTED_LABEL_MAP_AREA[k]: v for k, v in perf_results_per_group.items() if k != "overall"}
-        for g, d in results["per_private_label"].items():
-            d.update(perf_results_per_group[g])
+        for g, _d in results["per_private_label"].items():
+            _d.update(perf_results_per_group[g])
         for metric in ["ece", "mce", "aurc", "brier"]:
             results[f"{metric}_pos"] = abs(results[metric] - 1)
+        results["test_DTO"] = np.mean(d["test_DTO"])
         calib_results[method] = results
 
     return calib_results
@@ -291,7 +293,14 @@ def get_calib_scores(exp):
                          "test_probs": [], "test_labels": [], "test_predictions": [], "test_private_labels": [],
                          "vocab_f": []}
 
-    protected_group = get_protected_group(exp["opt"]["data_dir"])
+    try:
+        protected_group = get_protected_group(exp["opt"]["data_dir"])
+    except ValueError:
+        try:
+            protected_group = exp["opt"]["protected_attribute"].lower()
+        except KeyError:
+            print("Defaulting to Area as protected attribute.")
+            protected_group = "area"
 
     for epoch_result_dir in exp["dir"]:
         epoch_result = torch.load(epoch_result_dir)
@@ -420,6 +429,10 @@ def get_model_scores(exp, GAP_metric, Performance_metric, keep_original_metrics=
                   calibration_metric=dev_selected_score)
     test_DTO = DTO(fairness_metric=epoch_scores_test["fairness"], performacne_metric=epoch_scores_test["performance"],
                    calibration_metric=test_selected_score)
+    #dev_DTO = DTO(fairness_metric=epoch_scores_dev["fairness"], performacne_metric=epoch_scores_dev["performance"],
+    #              calibration_metric=None)
+    #test_DTO = DTO(fairness_metric=epoch_scores_test["fairness"], performacne_metric=epoch_scores_test["performance"],
+    #               calibration_metric=None)
 
     epoch_results_dict = {
         "epoch": epoch_id,

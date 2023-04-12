@@ -1,5 +1,5 @@
 from fairlib.src import analysis
-from tutorial.binaryGRADE.eg_settings import args
+from tutorial.binaryGRADE.eg_settings_area import args
 
 task = "binaryGRADE"
 Shared_options = {
@@ -27,9 +27,7 @@ Shared_options = {
     # Loading experimental results
     "n_jobs": 4,
     "do_calib_eval": True,
-    "calib_metric_name": "aurc",
-    "calib_selection_criterion": "DTO"
-    #"calib_selection_criterion": None
+    "calib_metric_name": "aurc"
 }
 
 analysis.model_selection(
@@ -51,9 +49,7 @@ analysis.model_selection(
     # If retrive results in parallel
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -70,9 +66,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 
@@ -90,9 +84,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -109,9 +101,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -128,9 +118,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -147,9 +135,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 """
@@ -167,9 +153,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 """
 
@@ -187,9 +171,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 """
 analysis.model_selection(
@@ -207,17 +189,15 @@ analysis.model_selection(
     n_jobs=Shared_options["n_jobs"],
     #do_calib_eval=Shared_options["do_calib_eval"],
     do_calib_eval=False,
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-)
+    calib_metric_name=Shared_options["calib_metric_name"])
 """
 
 EG_results, EG_calib_results = analysis.retrive_results(Shared_options["dataset"], log_dir=Shared_options["results_dir"], do_calib_eval=Shared_options["do_calib_eval"])
 
 #pareto = False
 pareto = True
-selection_criterion = None
-#selection_criterion = "DTO"
+#selection_criterion = None
+selection_criterion = "DTO"
 calib_selection_criterion=Shared_options["calib_selection_criterion"]
 #calib_selection_criterion=None
 EG_main_results, EG_calib_main_results = analysis.final_results_df(
@@ -228,12 +208,9 @@ EG_main_results, EG_calib_main_results = analysis.final_results_df(
     return_dev=True,
     return_conf=True,
     Fairness_threshold=-10,
-    calib_additional_metrics=["dev_performance", "test_performance"],
     do_calib_eval=Shared_options["do_calib_eval"],
     calib_results_dict=EG_calib_results,
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=calib_selection_criterion
-)
+    calib_metric_name=Shared_options["calib_metric_name"])
 
 aurc_raw_out =False
 if aurc_raw_out:

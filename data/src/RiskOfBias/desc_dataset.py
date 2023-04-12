@@ -2,14 +2,14 @@ import argparse
 from collections import Counter
 
 import numpy as np
-import scipy
 from sklearn.metrics import precision_score, recall_score, f1_score
+from sysrev.modelling.allennlp.util import INV_ROB_MAPPING
 
 from fairlib.src.dataloaders.generalized_BT import get_data_distribution
-from fairlib.src.dataloaders.loaders.EGBinaryGrade import PROTECTED_LABEL_MAP_AREA, INV_PROTECTED_LABEL_MAP_AREA, \
-    PROTECTED_LABEL_MAP_AGE, PROTECTED_LABEL_MAP_SEX, INV_PROTECTED_LABEL_MAP_AGE, INV_PROTECTED_LABEL_MAP_SEX
+from fairlib.src.dataloaders.utils import PROTECTED_LABEL_MAP_AREA, INV_PROTECTED_LABEL_MAP_AREA, \
+    PROTECTED_LABEL_MAP_AGE, INV_PROTECTED_LABEL_MAP_AGE, PROTECTED_LABEL_MAP_SEX, INV_PROTECTED_LABEL_MAP_SEX
 from fairlib.src.dataloaders.loaders.RoB import label_map
-from fairlib.src.utils import load_json
+from fairlib.src.utils import load_json, print_tsv
 
 
 def random_baseline(f):
@@ -79,15 +79,20 @@ def describe(input_dir, protected_group):
                 protected_labels_idx.append(p_label)
 
         labels = np.array(labels).astype(int)
+        """
         print(f"Size: {len(labels)}")
         abstract_desc = scipy.stats.describe([len(a.split()) for a in abstracts])
         print(f"Abstracts stats: {abstract_desc}")
-        data_dist = get_data_distribution(np.array(labels), np.array(protected_labels_idx))
+        """
+        data_dist = get_data_distribution(np.array(labels), np.array(protected_labels_idx), y_size=2, g_size=len(protected_label_map))
+        """
         print(f"Label dist: {data_dist['y_dist']}")
         protected_labels_dist = [(inv_protected_label_map[idx], round(data_dist["g_dist"][idx], 2)) for idx in
                                  data_dist["g_dist"].argsort()]
         print(f"Protected label dist: {protected_labels_dist}")
         print()
+        """
+        print_tsv(data_dist, inv_protected_label_map, protected_group, inv_label_mapping=INV_ROB_MAPPING)
 
 
 if __name__ == "__main__":

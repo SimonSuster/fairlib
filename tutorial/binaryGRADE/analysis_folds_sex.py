@@ -17,7 +17,7 @@ for fold_n in range(n_folds):
         # Random seed
         "seed": 2022,
         # The name of the dataset, corresponding dataloader will be used,
-        "dataset": f"EGBinaryGradeNumFolds_{fold_n}",
+        "dataset": f"EGBinaryGradeSexFolds_{fold_n}",
         # Specifiy the path to the input data
         "data_dir": f"{args['data_dir']}{fold_n}",
         # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
@@ -43,7 +43,7 @@ for fold_n in range(n_folds):
 
     analysis.model_selection(
         # exp_id started with model_id will be treated as the same method, e.g, vanilla, and adv
-        model_id=("vanilla"),
+        model_id=("Sexvanilla"),
         # the tuned hyperparameters of a methods, which will be used to group multiple runs together.
         index_column_names=["BT", "BTObj"],
         # to convenient the further analysis, we will store the resulting DataFrame to the specified path
@@ -61,11 +61,10 @@ for fold_n in range(n_folds):
         n_jobs=Shared_options["n_jobs"],
         do_calib_eval=Shared_options["do_calib_eval"],
         calib_metric_name=Shared_options["calib_metric_name"]
-
     )
 
     analysis.model_selection(
-        model_id=("BTDownsampling"),
+        model_id=("SexBTDownsampling"),
         index_column_names = ["BT", "BTObj"],
         save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}BTDownsampling_df.pkl",
         # Follwoing options are predefined
@@ -84,7 +83,7 @@ for fold_n in range(n_folds):
 
 
     analysis.model_selection(
-        model_id=("BTResampling"),
+        model_id=("SexBTResampling"),
         index_column_names = ["BT", "BTObj"],
         save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}BTResampling_df.pkl",
         # Follwoing options are predefined
@@ -101,7 +100,7 @@ for fold_n in range(n_folds):
     )
 
     analysis.model_selection(
-        model_id=("BTReweighting"),
+        model_id=("SexBTReweighting"),
         index_column_names = ["BT", "BTObj"],
         save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}BTReweighting_df.pkl",
         # Follwoing options are predefined
@@ -118,7 +117,7 @@ for fold_n in range(n_folds):
     )
 
     analysis.model_selection(
-        model_id=("Adv"),
+        model_id=("SexAdv"),
         index_column_names=['adv_lambda', 'adv_num_subDiscriminator', 'adv_diverse_lambda', "BT"],
         save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}ADV_df.pkl",
         # Follwoing options are predefined
@@ -135,7 +134,7 @@ for fold_n in range(n_folds):
     )
 
     analysis.model_selection(
-        model_id=("DAdv"),
+        model_id=("SexDAdv"),
         index_column_names=['adv_lambda', 'adv_num_subDiscriminator', 'adv_diverse_lambda', "BT"],
         save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}DADV_df.pkl",
         # Follwoing options are predefined
@@ -152,7 +151,7 @@ for fold_n in range(n_folds):
     )
 
     analysis.model_selection(
-        model_id=("FCL"),
+        model_id=("SexFCL"),
         index_column_names=["fcl_lambda_g", "fcl_lambda_y"],
         save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}FCL_df.pkl",
         # Follwoing options are predefined
@@ -173,7 +172,7 @@ for fold_n in range(n_folds):
 
 
 EG_calib_results_folds = get_calib_scores_folds(results_per_fold)
-folds_results_to_csv(EG_calib_results_folds, f=os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGArea_folds_results.csv"), f_calib=os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGArea_folds_calib_results.csv"))
+folds_results_to_csv(EG_calib_results_folds, f=os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGSex_folds_results.csv"), f_calib=os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGSex_folds_calib_results.csv"))
 
 if n_folds == 1:
     # model selection on fold 0 only
@@ -194,8 +193,6 @@ if n_folds == 1:
         calib_metric_name=Shared_options["calib_metric_name"])
 
 
-#EG_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGArea_results.csv"))
-#EG_calib_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGArea_calib_results.csv"))
 
 """
 aurc_raw_out =False
@@ -258,11 +255,11 @@ analysis.tables_and_figures.make_plot(
 )
 """
 analysis.tables_and_figures.make_plot_folds(EG_calib_results_folds,
-    figure_name=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/EGBinaryGradeNum/plot_folds.png",
+    figure_name=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/EGBinaryGradeNum/plot_sex_folds.png",
     performance_name=Shared_options["Performance_metric_name"]
 )
 analysis.tables_and_figures.make_plot_folds(EG_calib_results_folds,
-    figure_name=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/EGBinaryGradeNum/plot_calib_folds.png",
+    figure_name=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/EGBinaryGradeNum/plot_calib_sex_folds.png",
     performance_name=Shared_options["calib_metric_name"]
 )
 

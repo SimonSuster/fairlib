@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import statistics
 
 import numpy as np
@@ -110,6 +111,21 @@ class SepsisMIMIC:
         print("All categories of notes")
         print(set(notes_df['CATEGORY']))
 
+        # these will be later removed, but we want to keep them as OOD notes
+        ood_notes = notes_df[(notes_df['CATEGORY'] == "Social Work") | (notes_df['CATEGORY'] == "Rehab Services") |
+                             (notes_df['CATEGORY'] == "Nutrition")]
+        ood_list = []
+        for c, (hadm_id, txt) in enumerate(zip(ood_notes.HADM_ID, ood_notes.TEXT)):
+            ood_list.append({"ID": c, "HADM_ID": hadm_id, "TEXT": re.sub("\n+", "\n", txt)})
+        save_json(ood_list, f"{outdir}/ood_social_rehab_nutri.json")
+
+        # these will be later removed, but we want to keep them as OOD notes
+        ood_notes = notes_df[(notes_df['CATEGORY'] == "Discharge summary")]
+        ood_list = []
+        for c, (hadm_id, txt) in enumerate(zip(ood_notes.HADM_ID, ood_notes.TEXT)):
+            ood_list.append({"ID": c, "HADM_ID": hadm_id, "TEXT": re.sub("\n+", "\n", txt)})
+        save_json(ood_list, f"{outdir}/ood_discharge.json")
+
         print("Removing social work notes")
         notes_df = notes_df[notes_df['CATEGORY'] != "Social Work"]
 
@@ -154,6 +170,7 @@ class SepsisMIMIC:
         save_json(train_set, f"{outdir}/train.json")
         save_json(dev_set, f"{outdir}/dev.json")
         save_json(test_set, f"{outdir}/test.json")
+
 
 
 if __name__ == '__main__':

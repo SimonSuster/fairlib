@@ -72,7 +72,6 @@ def final_results_df(
         save_conf_dir=None,
         num_trail=None,
         additional_metrics=[],
-        calib_additional_metrics=[],
         do_calib_eval=False,
         calib_results_dict=None,
         calib_metric_name="ece"):
@@ -113,15 +112,19 @@ def final_results_df(
         if _do_calib_eval:
             _calib_df = calib_results_dict[key]
             # remove aurc=0 results as these are invalid
-            _calib_df = _calib_df[(_calib_df["dev_aurc"] != 0) & (_calib_df["test_aurc"] != 0)]
+            #_calib_df = _calib_df[(_calib_df["dev_aurc"] != 0) & (_calib_df["test_aurc"] != 0)]
         # Calculate Mean and Variance for each run
         # for calibration performance
         if _do_calib_eval:
             if calib_metric_name in ["ece", "mce", "aurc"]:
                 # select positive interpretation of the lower-is-better metric
                 calib_metric_name_select = f"{calib_metric_name}_pos"
+                calib_additional_metrics = {"ece_pos", "mce_pos", "aurc_pos"}
+                calib_additional_metrics.remove(calib_metric_name_select)
+
             else:
                 calib_metric_name_select = calib_metric_name
+
             calib_agg_dict = {
                 f"dev_{calib_metric_name_select}": ["mean", "std"],
                 f"test_{calib_metric_name_select}": ["mean", "std"],
@@ -142,6 +145,11 @@ def final_results_df(
         # Add aggregation to the specified metrics
         for _additional_metric in additional_metrics:
             agg_dict[_additional_metric] = ["mean", "std"]
+
+        if _do_calib_eval:
+            for _additional_metric in calib_additional_metrics:
+                calib_agg_dict[f"dev_{_additional_metric}"] = ["mean", "std"]
+                calib_agg_dict[f"test_{_additional_metric}"] = ["mean", "std"]
 
         try:
             _df = _df.groupby(_df.index).agg(agg_dict).reset_index()
@@ -189,7 +197,7 @@ def final_results_df(
 
         if _do_calib_eval:
             calib_selected_columns = ["{}_{} {}".format(phase, metric, value) for phase in ["test", "dev"] for metric in
-                            [calib_metric_name_select] for value in ["mean", "std"]]
+                            [calib_metric_name_select] + list(calib_additional_metrics) for value in ["mean", "std"]]
             calib_selected_columns.append("epoch list")
             calib_selected_columns.append("opt_dir list")
             calib_selected_columns.append("is_pareto")
@@ -215,6 +223,8 @@ def final_results_df(
         _calib_pareto_df["dev_DTO mean"] = _final_DTO
 
         # Model selection
+        # This isn't epoch-based checkpoint selection (which is done here: fairlib.src.analysis.load_results.model_selection_parallel)
+        # This is model selection among diff. hyperparams (after pareto filtering has been made)
         if selection_criterion is not None:
             if selection_criterion == "DTO":
                 selected_epoch_id = np.argmin(_pareto_df["dev_{} mean".format(selection_criterion)])
@@ -242,10 +252,10 @@ def final_results_df(
         )
         final_df["DTO"] = _over_DTO
         calib_final_df["DTO"] = _over_DTO
-        calib_evaluation_cols = list(calib_final_df.keys())[1:(9 if return_dev else 5)]
+        #calib_evaluation_cols = list(calib_final_df.keys())[1:(9 if return_dev else 5)]
         #calib_reproducibility_cols = ["epoch list", "opt_dir list"] if return_conf else []
-        calib_final_df = calib_final_df[calib_evaluation_cols + ["DTO"] + [
-            "is_pareto"] + additional_metric_columns].copy()
+        #calib_final_df = calib_final_df[calib_evaluation_cols + ["DTO"] + [
+        #    "is_pareto"] + additional_metric_columns].copy()
 
         if save_conf_dir is not None:
             for (_model, _epoch_list, opt_list) in final_df[["Models", "epoch list", "opt_dir list"]].values:
@@ -254,10 +264,10 @@ def final_results_df(
                 for _run, (_epoch, _opt) in enumerate(zip(_epoch_list, opt_list)):
                     shutil.copy2(_opt, model_dir / 'Run_{}_Selected_Epoch_{}.yaml'.format(_run, _epoch))
 
-        evaluation_cols = list(final_df.keys())[1:(9 if return_dev else 5)]
-        reproducibility_cols = ["epoch list", "opt_dir list"] if return_conf else []
-        final_df = final_df[["Models"] + evaluation_cols + ["DTO"] + reproducibility_cols + [
-            "is_pareto"] + additional_metric_columns].copy()
+        #evaluation_cols = list(final_df.keys())[1:(9 if return_dev else 5)]
+        #reproducibility_cols = ["epoch list", "opt_dir list"] if return_conf else []
+        #final_df = final_df[["Models"] + evaluation_cols + ["DTO"] + reproducibility_cols + [
+        #    "is_pareto"] + additional_metric_columns].copy()
 
 
     return (final_df, calib_final_df if do_calib_eval else None)

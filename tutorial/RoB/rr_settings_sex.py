@@ -1,6 +1,8 @@
-from fairlib.src.dataloaders.loaders.EGBinaryGrade import SEX
+from fairlib.src.dataloaders.utils import get_num_groups
 
 task = "risk-of-bias"
+protected_attribute = "sex"
+num_groups = get_num_groups(protected_attribute)
 data_dir = "/home/simon/Apps/robotreviewer/rob_abstract_dataset_sex/"
 results_dir = ""  # dev/...
 serialization_dir = "/home/simon/Apps/SysRevData/data/modelling/saved/"
@@ -16,7 +18,7 @@ args = {
     "serialization_dir": serialization_dir,
     # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
     "device_id": -1,
-    "num_groups": len(SEX),
+    "num_groups": num_groups,
     # "emb_size": len(NUM_TYPES),
     "emb_size": 768,
     "n_hidden": 2,

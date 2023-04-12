@@ -1,35 +1,11 @@
 from allennlp.common import Params
+from sysrev.dataset_construction.dataset.robotreviewer_train_prepare import get_protected_attribute, load_pico_anno
 from sysrev.modelling.allennlp.my_project.dataset_reader import *
-from sysrev.modelling.allennlp.util import BINARY_MAPPING2
+from sysrev.modelling.allennlp.util import BINARY_MAPPING2, INV_BINARY_MAPPING2
 
-from ..utils import BaseDataset
-
-# sys.path.append("/home/simon/Apps/SysRev/")
-
-CAT_TYPES = ["review_type", "type_effect", "topics"]
-TXT_TYPES = ["full_abstract_txt", "abstract_conclusion_txt", "plain_language_summary_txt", "authors_conclusions_txt"]
-NUM_TYPES = NUMERICAL_FEATS + NUMERICAL_FEATS_PER_OUTCOME
-TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", "Complementary & alternative medicine",
-          "Consumer & communication strategies", "Dentistry & oral health",
-          "Developmental, psychosocial & learning problems",
-          "Ear, nose & throat", "Effective practice & health systems", "Endocrine & metabolic", "Eyes & vision",
-          "Gastroenterology & hepatology", "Genetic disorders", "Gynaecology", "Health & safety at work",
-          "Heart & circulation",
-          "Infectious disease", "Insurance medicine", "Kidney disease", "Lungs & airways", "Mental health",
-          "Neonatal care",
-          "Neurology", "Orthopaedics & trauma", "Pain & anaesthesia", "Pregnancy & childbirth", "Public health",
-          "Rheumatology", "Skin disorders", "Tobacco, drugs & alcohol", "Urology", "Wounds"]
-PROTECTED_LABEL_MAP_AREA = dict(zip(TOPICS, list(range(len(TOPICS)))))
-INV_PROTECTED_LABEL_MAP_AREA = {v: k for k, v in PROTECTED_LABEL_MAP_AREA.items()}
-
-AGE = ['Child 6-12 years', 'Aged 65-79 years', 'Middle Aged 45-64 years', 'Adolescent 13-18 years', 'Adult 19-44 years',
-       'Child, Preschool 2-5 years', 'Birth to 1 mo', 'Young Adult 19-24 years', 'Aged 80 and over 80+ years', 'Infant 1 to 23 mo']
-PROTECTED_LABEL_MAP_AGE = dict(zip(AGE, list(range(len(AGE)))))
-INV_PROTECTED_LABEL_MAP_AGE = {v: k for k, v in PROTECTED_LABEL_MAP_AGE.items()}
-
-SEX = ["Male", "Female", "Male and Female"]
-PROTECTED_LABEL_MAP_SEX = dict(zip(SEX, list(range(len(SEX)))))
-INV_PROTECTED_LABEL_MAP_SEX = {v: k for k, v in PROTECTED_LABEL_MAP_SEX.items()}
+from ..generalized_BT import get_data_distribution
+from ..utils import BaseDataset, get_protected_label_map, get_inv_protected_label_map, CAT_TYPES
+from ...utils import print_tsv
 
 
 def binary_mapping_criteria(label):
@@ -75,7 +51,8 @@ class EGBinaryGrade(BaseDataset):
         self.fold_n = self.args.fold_n
         self.serialization_dir = self.args.serialization_dir
         self.scaler_training_path = self.args.scaler_training_path
-
+        self.pico_anno = load_pico_anno(self.args.pico_anno_f) if self.args.protected_attribute in {"Sex",
+                                                                                                    "Age"} else None
         dataset_reader = get_dataset_reader(self.data_dir, self.fold_n, self.serialization_dir,
                                             self.scaler_training_path, param_file=self.args.param_file)
 
@@ -89,17 +66,27 @@ class EGBinaryGrade(BaseDataset):
             if self.args.max_load is not None:
                 if c > self.args.max_load:
                     break
-            # when multiple topics exist, create one instance per each topic:
-            protected_labels = i.fields["cat_feats_list"].field_list[CAT_TYPES.index("topics")].tokens
+            # for area, we get the info from the data instance
+            if self.args.protected_attribute == "Area":
+                protected_labels = i.fields["cat_feats_list"].field_list[CAT_TYPES.index("topics")].tokens
+            # for sex, we get the info from a separate meta file
+            else:
+                protected_labels = get_protected_attribute(i.fields["metadata"], self.pico_anno,
+                                                           self.args.protected_attribute)
+                if not isinstance(protected_labels, list):
+                    protected_labels = [protected_labels]
             n_cat_types = len(CAT_TYPES)
+            # when multiple areas exist, create one instance per each topic:
             for protected_label in protected_labels:
+                if self.args.protected_attribute == "Area":
+                    protected_label = protected_label.text.replace("_", " ")
                 _i = i.duplicate()
-                p_label = PROTECTED_LABEL_MAP_AREA.get(protected_label.text.replace("_", " "), None)
+                p_label = get_protected_label_map(self.args.protected_attribute.lower()).get(protected_label, None)
                 if p_label is None:
                     continue
                 self.protected_label.append(p_label)
 
-                # erase protected label from the features
+                # erase area from the features
                 assert CAT_TYPES[-1] == "topics"
                 assert len(_i.fields["cat_feats_list"].field_list) == n_cat_types
                 _i.fields["cat_feats_list"].field_list[-1].tokens = []
@@ -107,3 +94,6 @@ class EGBinaryGrade(BaseDataset):
                 self.y.append(label_map(_i.fields["label"].label))
 
         print()
+        data_dist = get_data_distribution(np.array(self.y), np.array(self.protected_label), y_size=2, g_size=self.args.num_groups)
+        print_tsv(data_dist, get_inv_protected_label_map(self.args.protected_attribute.lower()),
+                  self.args.protected_attribute.lower(), inv_label_mapping=INV_BINARY_MAPPING2)

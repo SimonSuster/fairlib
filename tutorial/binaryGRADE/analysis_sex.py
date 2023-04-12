@@ -1,19 +1,16 @@
 import os
 
-from sysrev.modelling.allennlp.util_stat import gap_eval_scores
-
 from fairlib.src import analysis
-from fairlib.src.dataloaders.utils import get_inv_protected_label_map
-from tutorial.RoB.rr_settings_sex import args
+from tutorial.binaryGRADE.eg_settings_sex import args
 
-task = "RoB"
+task = "binaryGRADE"
 Shared_options = {
     # Random seed
     "seed": 2022,
     # The name of the dataset, corresponding dataloader will be used,
-    "dataset": "RoB",
+    "dataset": "EGBinaryGrade",
     # Specifiy the path to the input data
-    "data_dir": f"{args['data_dir']}",
+    "data_dir": f"{args['data_dir']}{args['fold_n']}",
     # Device for computing, -1 is the cpu; non-negative numbers indicate GPU id.
     "device_id": -1,
     # The default path for saving experimental results
@@ -33,17 +30,17 @@ Shared_options = {
     "n_jobs": 1,
     "do_calib_eval": True,
     "calib_metric_name": "aurc",
-    "calib_selection_criterion": "DTO"
+    #"calib_selection_criterion": "DTO"
     #"calib_selection_criterion": None
 }
-
+"""
 analysis.model_selection(
     # exp_id started with model_id will be treated as the same method, e.g, vanilla, and adv
-    model_id=("RRSexVanilla"),
+    model_id=("vanilla"),
     # the tuned hyperparameters of a methods, which will be used to group multiple runs together.
     index_column_names=["BT", "BTObj"],
     # to convenient the further analysis, we will store the resulting DataFrame to the specified path
-    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}Sexvanilla_df.pkl",
+    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}vanilla_df.pkl",
     # Follwoing options are predefined
     results_dir=Shared_options["results_dir"],
     project_dir=Shared_options["project_dir"] + "/" + Shared_options["dataset"],
@@ -56,11 +53,13 @@ analysis.model_selection(
     # If retrive results in parallel
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"]
-)
+    calib_metric_name=Shared_options["calib_metric_name"],
+    calib_selection_criterion=Shared_options["calib_selection_criterion"]
 
+)
+"""
 analysis.model_selection(
-    model_id=("RRSexBTDownsampling"),
+    model_id=("SexBTDownsampling"),
     index_column_names = ["BT", "BTObj"],
     save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexBTDownsampling_df.pkl",
     # Follwoing options are predefined
@@ -74,12 +73,11 @@ analysis.model_selection(
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
     calib_metric_name=Shared_options["calib_metric_name"]
-
 )
 
 
 analysis.model_selection(
-    model_id=("RRSexBTResampling"),
+    model_id=("SexBTResampling"),
     index_column_names = ["BT", "BTObj"],
     save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexBTResampling_df.pkl",
     # Follwoing options are predefined
@@ -96,7 +94,7 @@ analysis.model_selection(
 )
 
 analysis.model_selection(
-    model_id=("RRSexBTReweighting"),
+    model_id=("SexBTReweighting"),
     index_column_names = ["BT", "BTObj"],
     save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexBTReweighting_df.pkl",
     # Follwoing options are predefined
@@ -112,8 +110,9 @@ analysis.model_selection(
     calib_metric_name=Shared_options["calib_metric_name"]
 )
 
+
 analysis.model_selection(
-    model_id=("RRSexAdv"),
+    model_id=("SexAdv"),
     index_column_names=['adv_lambda', 'adv_num_subDiscriminator', 'adv_diverse_lambda', "BT"],
     save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexADV_df.pkl",
     # Follwoing options are predefined
@@ -130,7 +129,7 @@ analysis.model_selection(
 )
 
 analysis.model_selection(
-    model_id=("RRSexDAdv"),
+    model_id=("SexDAdv"),
     index_column_names=['adv_lambda', 'adv_num_subDiscriminator', 'adv_diverse_lambda', "BT"],
     save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexDADV_df.pkl",
     # Follwoing options are predefined
@@ -148,9 +147,9 @@ analysis.model_selection(
 
 """
 analysis.model_selection(
-    model_id=("RRSexBTEOAdv"),
+    model_id=("BTEOAdv"),
     # index_column_names = ["BT", "BTObj"],
-    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexBTEOADV_df.pkl",
+    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}BTEOADV_df.pkl",
     # Follwoing options are predefined
     results_dir=Shared_options["results_dir"],
     project_dir=Shared_options["project_dir"] + "/" + Shared_options["dataset"],
@@ -161,12 +160,14 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"]
+    calib_metric_name=Shared_options["calib_metric_name"],
+    calib_selection_criterion=Shared_options["calib_selection_criterion"]
+
 )
 """
 
 analysis.model_selection(
-    model_id=("RRFCLSex"),
+    model_id=("SexFCL"),
     index_column_names=["fcl_lambda_g", "fcl_lambda_y"],
     save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexFCL_df.pkl",
     # Follwoing options are predefined
@@ -184,9 +185,9 @@ analysis.model_selection(
 
 """
 analysis.model_selection(
-    model_id=("RRSexINLP"),
+    model_id=("INLP"),
     index_column_names=["INLP_by_class", "INLP_discriminator_reweighting"],
-    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexINLP_df.pkl",
+    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}INLP_df.pkl",
     # Follwoing options are predefined
     results_dir=Shared_options["results_dir"],
     project_dir=Shared_options["project_dir"] + "/" + Shared_options["dataset"],
@@ -198,13 +199,15 @@ analysis.model_selection(
     n_jobs=Shared_options["n_jobs"],
     #do_calib_eval=Shared_options["do_calib_eval"],
     do_calib_eval=False,
-    calib_metric_name=Shared_options["calib_metric_name"])
+    calib_metric_name=Shared_options["calib_metric_name"],
+    calib_selection_criterion=Shared_options["calib_selection_criterion"]
+)
 """
 
 EG_results, EG_calib_results = analysis.retrive_results(f'{Shared_options["dataset"]}Sex', log_dir=Shared_options["results_dir"], do_calib_eval=Shared_options["do_calib_eval"])
 
-#pareto = False
 pareto = True
+#pareto = True
 #selection_criterion = None
 selection_criterion = "DTO"
 #calib_selection_criterion=Shared_options["calib_selection_criterion"]
@@ -219,14 +222,15 @@ EG_main_results, EG_calib_main_results = analysis.final_results_df(
     Fairness_threshold=-10,
     do_calib_eval=Shared_options["do_calib_eval"],
     calib_results_dict=EG_calib_results,
-    calib_metric_name=Shared_options["calib_metric_name"])
+    calib_metric_name=Shared_options["calib_metric_name"]
+)
 
-EG_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "RRSex_results.csv"))
-EG_calib_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "RRSex_calib_results.csv"))
+EG_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGSex_results.csv"))
+EG_calib_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGSex_calib_results.csv"))
 
 aurc_raw_out =False
 if aurc_raw_out:
-    #assert (not pareto) and (selection_criterion is None) and (calib_selection_criterion == "performance")
+    assert (not pareto) and (selection_criterion is None) and (calib_selection_criterion == "performance")
     with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_{task}_debias.csv", "w") as fh_out:
         fh_out.write("model\tcriterion\ttopic\tcoverage\trisk\n")
         for model, opt_dir in zip(EG_calib_main_results["Models"], EG_calib_main_results["opt_dir list"]):
@@ -243,31 +247,13 @@ if aurc_raw_out:
                 for coverage, risk in results["aurc_raw"]:
                     fh_out.write("{}\t{}\t{}\t{}\t{}\n".format(model.replace("Num", ""), task, protected_label, coverage, risk))
 
-perf_raw_out =True
-if perf_raw_out:
-    inv_protected_label_map = get_inv_protected_label_map("sex")
-    with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/robotreviewer/robotreviewer_perf_raw_{task}_sex_debias.csv", "w") as fh_out:
-        fh_out.write("model\tcriterion\ttopic\tprecision\trecall\tf_macro\n")
-        for model, d in EG_calib_results.items():
-            best_d = EG_calib_results[model].loc[EG_calib_results[model]["opt_dir"] ==
-                                           EG_calib_main_results.loc[EG_calib_main_results["Models"] == model][
-                                               "opt_dir list"].tolist()[0][0]]
-            _, _, perf_results_per_group = gap_eval_scores(best_d["test_test_predictions"].tolist()[0], best_d["test_test_labels"].tolist()[0], best_d["test_test_private_labels"].tolist()[0])
-            perf_results_per_group = {inv_protected_label_map[k]: v for k, v in perf_results_per_group.items() if
-                                      k != "overall"}
-            for protected_label, results in perf_results_per_group.items():
-                if not results:
-                    continue
-                fh_out.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(model, task, protected_label, results["precision_macro"],
-                                                           results["recall_macro"],
-                                                           results["macro_fscore"]))
-
 
 analysis.tables_and_figures.make_plot(
     EG_main_results,
     figure_name=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}/plot_sex.png",
     performance_name=Shared_options["Performance_metric_name"]
 )
+
 EG_calib_main_results["test_fairness mean"] = EG_main_results["test_fairness mean"]
 analysis.tables_and_figures.make_plot(
     EG_calib_main_results,

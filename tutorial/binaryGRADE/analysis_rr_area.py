@@ -1,7 +1,9 @@
+import os
+
 from sysrev.modelling.allennlp.util_stat import gap_eval_scores
 
 from fairlib.src import analysis
-from fairlib.src.dataloaders.loaders.RoB import get_inv_protected_label_map
+from fairlib.src.dataloaders.utils import get_inv_protected_label_map
 from tutorial.RoB.rr_settings_area import args
 
 task = "RoB"
@@ -28,11 +30,9 @@ Shared_options = {
     "checkpoint_dir": "models",
     "checkpoint_name": "checkpoint_epoch",
     # Loading experimental results
-    "n_jobs": 4,
+    "n_jobs": 1,
     "do_calib_eval": True,
-    "calib_metric_name": "ece",
-    "calib_selection_criterion": "performance"
-    #"calib_selection_criterion": None
+    "calib_metric_name": "aurc"
 }
 
 analysis.model_selection(
@@ -54,9 +54,7 @@ analysis.model_selection(
     # If retrive results in parallel
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 analysis.model_selection(
     model_id=("RRAreaBTDownsampling"),
@@ -72,9 +70,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 
@@ -92,9 +88,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -111,9 +105,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -130,9 +122,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 analysis.model_selection(
@@ -149,9 +139,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 """
 analysis.model_selection(
@@ -188,9 +176,7 @@ analysis.model_selection(
     checkpoint_name=Shared_options["checkpoint_name"],
     n_jobs=Shared_options["n_jobs"],
     do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-
+    calib_metric_name=Shared_options["calib_metric_name"]
 )
 
 """
@@ -209,19 +195,17 @@ analysis.model_selection(
     n_jobs=Shared_options["n_jobs"],
     #do_calib_eval=Shared_options["do_calib_eval"],
     do_calib_eval=False,
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=Shared_options["calib_selection_criterion"]
-)
+    calib_metric_name=Shared_options["calib_metric_name"])
 """
 
 EG_results, EG_calib_results = analysis.retrive_results(f'{Shared_options["dataset"]}Area', log_dir=Shared_options["results_dir"], do_calib_eval=Shared_options["do_calib_eval"])
 
 #pareto = False
 pareto = True
-selection_criterion = None
-#selection_criterion = "DTO"
-#calib_selection_criterion=Shared_options["calib_selection_criterion"]
-calib_selection_criterion=None
+
+selection_criterion = "DTO"
+#selection_criterion = None
+
 EG_main_results, EG_calib_main_results = analysis.final_results_df(
     results_dict=EG_results,
     pareto=pareto,
@@ -230,16 +214,16 @@ EG_main_results, EG_calib_main_results = analysis.final_results_df(
     return_dev=True,
     return_conf=True,
     Fairness_threshold=-10,
-    calib_additional_metrics=["dev_performance", "test_performance"],
     do_calib_eval=Shared_options["do_calib_eval"],
     calib_results_dict=EG_calib_results,
-    calib_metric_name=Shared_options["calib_metric_name"],
-    calib_selection_criterion=calib_selection_criterion
-)
+    calib_metric_name=Shared_options["calib_metric_name"])
+
+EG_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "RRArea_results.csv"))
+EG_calib_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "RRArea_calib_results.csv"))
 
 aurc_raw_out =False
 if aurc_raw_out:
-    assert (not pareto) and (selection_criterion is None) and (calib_selection_criterion == "performance")
+    #assert (not pareto) and (selection_criterion is None) and (calib_selection_criterion == "performance")
     with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_{task}_debias.csv", "w") as fh_out:
         fh_out.write("model\tcriterion\ttopic\tcoverage\trisk\n")
         for model, opt_dir in zip(EG_calib_main_results["Models"], EG_calib_main_results["opt_dir list"]):
@@ -256,7 +240,7 @@ if aurc_raw_out:
                 for coverage, risk in results["aurc_raw"]:
                     fh_out.write("{}\t{}\t{}\t{}\t{}\n".format(model.replace("Num", ""), task, protected_label, coverage, risk))
 
-perf_raw_out =True
+perf_raw_out =False
 if perf_raw_out:
     inv_protected_label_map = get_inv_protected_label_map("area")
     with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/robotreviewer/robotreviewer_perf_raw_{task}_area_debias.csv", "w") as fh_out:
@@ -281,7 +265,9 @@ analysis.tables_and_figures.make_plot(
     performance_name=Shared_options["Performance_metric_name"]
 )
 
+EG_calib_main_results["test_fairness mean"] = EG_main_results["test_fairness mean"]
 analysis.tables_and_figures.make_plot(
+    #EG_main_results.merge(EG_calib_main_results, how="left", on="opt_dir list"),
     EG_calib_main_results,
     figure_name=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}/plot_calib_area.png",
     performance_name=Shared_options["calib_metric_name"]

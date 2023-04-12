@@ -1,4 +1,5 @@
-from fairlib.src.dataloaders.loaders.RoB import label_map, get_protected_group, get_protected_label_map
+from fairlib.src.dataloaders.loaders.RoB import label_map, get_protected_group
+from fairlib.src.dataloaders.utils import get_protected_label_map
 from fairlib.src.utils import load_json, save_json
 
 

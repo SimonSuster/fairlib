@@ -64,7 +64,7 @@ def describe(input_dir, protected_attribute):
 
             xs.append(len(i["x"].split()))
 
-        data_dist = get_data_distribution(np.array(labels), np.array(protected_labels))
+        data_dist = get_data_distribution(np.array(labels), np.array(protected_labels), y_size=len(set(SEPSIS_LABEL_MAP.values())), g_size=len(protected_label_map))
         print(f"Label dist: {data_dist['y_dist']}")
         protected_labels_dist = [(inv_protected_label_map[idx], round(data_dist["g_dist"][idx], 2)) for idx in
                                  data_dist["g_dist"].argsort()]
