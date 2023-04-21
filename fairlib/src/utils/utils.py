@@ -10,6 +10,9 @@ from os.path import exists, join, realpath
 import numpy as np
 import pandas as pd
 import torch
+from sysrev.modelling.allennlp.util_stat import gap_eval_scores
+
+from fairlib.src.dataloaders.utils import get_inv_protected_label_map
 
 
 class PandasUtils:
@@ -280,17 +283,55 @@ def csv_results_to_tex_table(f, f_calib):
             test_aurc_pos = round(float(row_calib["test_aurc_pos mean"]), 3)
             test_mce_pos = round(float(row_calib["test_mce_pos mean"]), 3)
             test_ece_pos = round(float(row_calib["test_ece_pos mean"]), 3)
-            d[model_name] = f'& {model_name} & {test_performance} & {test_fairness} & {test_aurc_pos} & {test_mce_pos} & {test_ece_pos} \\\\'
+            d[model_name] = f'{model_name} & {test_performance} & {test_fairness} & {test_aurc_pos} & {test_mce_pos} & {test_ece_pos} \\\\'
+            d[model_name] = d[model_name].replace("0.", ".")
         else:
             test_performance = round(float(row["test_performance mean"]) - vanilla_results["test_performance mean"], 3)
             test_fairness = round(float(row["test_fairness mean"]) - vanilla_results["test_fairness mean"], 3)
             test_aurc_pos = round(float(row_calib["test_aurc_pos mean"]) - vanilla_results["test_aurc_pos mean"], 3)
             test_mce_pos = round(float(row_calib["test_mce_pos mean"]) - vanilla_results["test_mce_pos mean"], 3)
             test_ece_pos = round(float(row_calib["test_ece_pos mean"]) - vanilla_results["test_ece_pos mean"], 3)
-            d[model_name] = f'& {model_name} & {pretty_str(test_performance)} & {pretty_str(test_fairness)} & {pretty_str(test_aurc_pos)} & {pretty_str(test_mce_pos)} & {pretty_str(test_ece_pos)} \\\\'
-
+            d[model_name] = f'{model_name} & {pretty_str(test_performance)} & {pretty_str(test_fairness)} & {pretty_str(test_aurc_pos)} & {pretty_str(test_mce_pos)} & {pretty_str(test_ece_pos)} \\\\'
+            d[model_name] = d[model_name].replace("0.", ".")
     for model_name in ["vanilla", "Downsampling", "Resampling", "Reweighting", "Adv", "DAdv", "FCL"]:
         print(d[model_name])
+        if model_name == "vanilla":
+            print("\\cmidrule(lr){1-6}")
+
+
+def write_raw_out_rr(calib_results, calib_main_results, task, protected_attribute, out_f):
+    inv_protected_label_map = get_inv_protected_label_map(protected_attribute)
+    with open(out_f, "w") as fh_out:
+        writer = csv.writer(fh_out)
+        writer.writerow(("model", "criterion", "topic", "precision", "recall", "f_macro"))
+        for model, d in calib_results.items():
+            best_d = calib_results[model].loc[calib_results[model]["opt_dir"] ==
+                                           calib_main_results.loc[calib_main_results["Models"] == model][
+                                               "opt_dir list"].tolist()[0][0]]
+            _, _, perf_results_per_group = gap_eval_scores(best_d["test_test_predictions"].tolist()[0],
+                                                           best_d["test_test_labels"].tolist()[0],
+                                                           best_d["test_test_private_labels"].tolist()[0])
+            perf_results_per_group = {inv_protected_label_map[k]: v for k, v in perf_results_per_group.items() if
+                                      k != "overall"}
+            for protected_label, results in perf_results_per_group.items():
+                if not results:
+                    continue
+                writer.writerow((model, task, protected_label, results["precision_macro"], results["recall_macro"],
+                                 results["macro_fscore"]))
+
+
+def write_raw_out(results, task, out_f):
+    with open(out_f, "w") as fh_out:
+        writer = csv.writer(fh_out)
+        writer.writerow(("model", "criterion", "topic", "precision", "recall", "f_macro"))
+        for model, d in results.items():
+            per_private_label_results = d["per_private_label"]
+            for protected_label, results in per_private_label_results.items():
+                if not results:
+                    continue
+                writer.writerow((model, task, protected_label, results["precision_macro"],
+                                 results["recall_macro"],
+                                 results["macro_fscore"]))
 
 
 def folds_results_to_csv(results, f, f_calib):

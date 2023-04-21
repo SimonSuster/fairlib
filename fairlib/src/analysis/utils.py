@@ -14,7 +14,7 @@ from yaml.loader import SafeLoader
 
 from fairlib.src.dataloaders.loaders.RoB import get_protected_group
 from fairlib.src.dataloaders.utils import get_protected_label_map, get_inv_protected_label_map, \
-    INV_PROTECTED_LABEL_MAP_AREA
+    INV_PROTECTED_LABEL_MAP_AREA, INV_PROTECTED_LABEL_MAP_AGE, INV_PROTECTED_LABEL_MAP_SEX
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
@@ -172,7 +172,7 @@ def get_dir(results_dir, project_dir, checkpoint_dir, checkpoint_name, model_id)
     return exps
 
 
-def get_calib_scores_folds(results_per_fold):
+def get_calib_scores_folds(results_per_fold, protected_attribute):
     raw_data = {}
     calib_results = {}
 
@@ -191,10 +191,15 @@ def get_calib_scores_folds(results_per_fold):
                 assert raw_data[method]["vocab_f"] == df["test_vocab_f"].to_list()[0]
             raw_data[method]["test_DTO"].append(d["EG_results"][_method]["test_DTO"])
 
+    protected_attribute = protected_attribute.lower()
+    inv_protected_label_map = {"area": INV_PROTECTED_LABEL_MAP_AREA,
+                               "age": INV_PROTECTED_LABEL_MAP_AGE,
+                               "sex": INV_PROTECTED_LABEL_MAP_SEX}[protected_attribute]
+
     for method, d in raw_data.items():
-        results = calib_eval(d["probs"], d["labels"], d["preds"], d["private_labels"], d["vocab_f"], None, "area")
+        results = calib_eval(d["probs"], d["labels"], d["preds"], d["private_labels"], d["vocab_f"], None, protected_attribute)
         _, _, perf_results_per_group = gap_eval_scores(d["preds"], d["labels"], d["private_labels"])
-        perf_results_per_group = {INV_PROTECTED_LABEL_MAP_AREA[k]: v for k, v in perf_results_per_group.items() if k != "overall"}
+        perf_results_per_group = {inv_protected_label_map[k]: v for k, v in perf_results_per_group.items() if k != "overall"}
         for g, _d in results["per_private_label"].items():
             _d.update(perf_results_per_group[g])
         for metric in ["ece", "mce", "aurc", "brier"]:

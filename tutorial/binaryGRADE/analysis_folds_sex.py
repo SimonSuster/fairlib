@@ -5,8 +5,8 @@ import numpy as np
 
 from fairlib.src import analysis
 from fairlib.src.analysis.utils import get_calib_scores_folds, analyse_selective_classification
-from fairlib.src.utils import folds_results_to_csv
-from tutorial.binaryGRADE.eg_settings_area import args
+from fairlib.src.utils import folds_results_to_csv, write_raw_out
+from tutorial.binaryGRADE.eg_settings_sex import args
 
 task = "binaryGRADE"
 # set n_folds to 1 to select best hyperparams, which you then use to train full 10 folds
@@ -171,7 +171,7 @@ for fold_n in range(n_folds):
     print()
 
 
-EG_calib_results_folds = get_calib_scores_folds(results_per_fold)
+EG_calib_results_folds = get_calib_scores_folds(results_per_fold, protected_attribute=args["protected_attribute"])
 folds_results_to_csv(EG_calib_results_folds, f=os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGSex_folds_results.csv"), f_calib=os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGSex_folds_calib_results.csv"))
 
 if n_folds == 1:
@@ -221,21 +221,11 @@ if aurc_raw_out:
                 if not results:
                     continue
                 fh_out.write("{}\t{}\t{}\t{}\n".format(model, task, protected_label, results["aurc"]))
-
+"""
 perf_raw_out =True
 if perf_raw_out:
-    with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_perf_raw_{task}_debias.csv", "w") as fh_out:
-        fh_out.write("model\tcriterion\ttopic\tprecision\trecall\tf_macro\n")
-        for model, d in EG_calib_results_folds.items():
-            per_private_label_results = d["per_private_label"]
-            for protected_label, results in per_private_label_results.items():
-                if not results:
-                    continue
-                fh_out.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(model, task, protected_label, results["precision_macro"],
-                                                           results["recall_macro"],
-                                                           results["macro_fscore"]))
+    write_raw_out(EG_calib_results_folds, task, out_f=f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_perf_raw_{task}_sex_debias.csv")
 
-"""
 for result, d in analyse_selective_classification(EG_calib_results_folds).items():
     print(result)
     print(d)

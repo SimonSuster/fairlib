@@ -4,6 +4,7 @@ from sysrev.modelling.allennlp.util_stat import gap_eval_scores
 
 from fairlib.src import analysis
 from fairlib.src.dataloaders.utils import get_inv_protected_label_map
+from fairlib.src.utils import write_raw_out_rr
 from tutorial.RoB.rr_settings_sex import args
 
 task = "RoB"
@@ -146,24 +147,6 @@ analysis.model_selection(
     calib_metric_name=Shared_options["calib_metric_name"]
 )
 
-"""
-analysis.model_selection(
-    model_id=("RRSexBTEOAdv"),
-    # index_column_names = ["BT", "BTObj"],
-    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexBTEOADV_df.pkl",
-    # Follwoing options are predefined
-    results_dir=Shared_options["results_dir"],
-    project_dir=Shared_options["project_dir"] + "/" + Shared_options["dataset"],
-    GAP_metric_name=Shared_options["GAP_metric_name"],
-    Performance_metric_name=Shared_options["Performance_metric_name"],
-    selection_criterion=Shared_options["selection_criterion"],
-    checkpoint_dir=Shared_options["checkpoint_dir"],
-    checkpoint_name=Shared_options["checkpoint_name"],
-    n_jobs=Shared_options["n_jobs"],
-    do_calib_eval=Shared_options["do_calib_eval"],
-    calib_metric_name=Shared_options["calib_metric_name"]
-)
-"""
 
 analysis.model_selection(
     model_id=("RRFCLSex"),
@@ -182,31 +165,14 @@ analysis.model_selection(
     calib_metric_name=Shared_options["calib_metric_name"]
 )
 
-"""
-analysis.model_selection(
-    model_id=("RRSexINLP"),
-    index_column_names=["INLP_by_class", "INLP_discriminator_reweighting"],
-    save_path=f"{Shared_options['results_dir']}/{Shared_options['project_dir']}/{Shared_options['dataset']}SexINLP_df.pkl",
-    # Follwoing options are predefined
-    results_dir=Shared_options["results_dir"],
-    project_dir=Shared_options["project_dir"] + "/" + Shared_options["dataset"],
-    GAP_metric_name=Shared_options["GAP_metric_name"],
-    Performance_metric_name=Shared_options["Performance_metric_name"],
-    selection_criterion=Shared_options["selection_criterion"],
-    checkpoint_dir=Shared_options["checkpoint_dir"],
-    checkpoint_name=Shared_options["checkpoint_name"],
-    n_jobs=Shared_options["n_jobs"],
-    #do_calib_eval=Shared_options["do_calib_eval"],
-    do_calib_eval=False,
-    calib_metric_name=Shared_options["calib_metric_name"])
-"""
-
 EG_results, EG_calib_results = analysis.retrive_results(f'{Shared_options["dataset"]}Sex', log_dir=Shared_options["results_dir"], do_calib_eval=Shared_options["do_calib_eval"])
 
 #pareto = False
 pareto = True
 #selection_criterion = None
 selection_criterion = "DTO"
+#selection_criterion = "fairness"
+#selection_criterion = "performance"
 #calib_selection_criterion=Shared_options["calib_selection_criterion"]
 #calib_selection_criterion=None
 EG_main_results, EG_calib_main_results = analysis.final_results_df(
@@ -245,22 +211,7 @@ if aurc_raw_out:
 
 perf_raw_out =True
 if perf_raw_out:
-    inv_protected_label_map = get_inv_protected_label_map("sex")
-    with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/robotreviewer/robotreviewer_perf_raw_{task}_sex_debias.csv", "w") as fh_out:
-        fh_out.write("model\tcriterion\ttopic\tprecision\trecall\tf_macro\n")
-        for model, d in EG_calib_results.items():
-            best_d = EG_calib_results[model].loc[EG_calib_results[model]["opt_dir"] ==
-                                           EG_calib_main_results.loc[EG_calib_main_results["Models"] == model][
-                                               "opt_dir list"].tolist()[0][0]]
-            _, _, perf_results_per_group = gap_eval_scores(best_d["test_test_predictions"].tolist()[0], best_d["test_test_labels"].tolist()[0], best_d["test_test_private_labels"].tolist()[0])
-            perf_results_per_group = {inv_protected_label_map[k]: v for k, v in perf_results_per_group.items() if
-                                      k != "overall"}
-            for protected_label, results in perf_results_per_group.items():
-                if not results:
-                    continue
-                fh_out.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(model, task, protected_label, results["precision_macro"],
-                                                           results["recall_macro"],
-                                                           results["macro_fscore"]))
+    write_raw_out_rr(EG_calib_results, EG_calib_main_results, task, "sex", out_f=f"/home/simon/Apps/SysRevData/data/modelling/plots/robotreviewer/robotreviewer_perf_raw_{task}_sex_debias.csv")
 
 
 analysis.tables_and_figures.make_plot(
