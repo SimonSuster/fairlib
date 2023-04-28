@@ -3,13 +3,12 @@ from collections import Counter
 
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score
-from sysrev.modelling.allennlp.util import INV_ROB_MAPPING
 
 from fairlib.src.dataloaders.generalized_BT import get_data_distribution
 from fairlib.src.dataloaders.utils import PROTECTED_LABEL_MAP_AREA, INV_PROTECTED_LABEL_MAP_AREA, \
     PROTECTED_LABEL_MAP_AGE, INV_PROTECTED_LABEL_MAP_AGE, PROTECTED_LABEL_MAP_SEX, INV_PROTECTED_LABEL_MAP_SEX
 from fairlib.src.dataloaders.loaders.RoB import label_map
-from fairlib.src.utils import load_json, print_tsv
+from fairlib.src.utils import load_json, print_tsv, INV_ROB_MAPPING
 
 
 def random_baseline(f):
@@ -55,13 +54,14 @@ def describe(input_dir, protected_group):
     inv_protected_label_map = {"area": INV_PROTECTED_LABEL_MAP_AREA,
                                "age": INV_PROTECTED_LABEL_MAP_AGE,
                                "sex": INV_PROTECTED_LABEL_MAP_SEX}[protected_group]
+    all_d = []
 
     for dataset in (train_set, dev_set, test_set):
         abstracts = []
+        pmids = []
         labels = []
         protected_labels = []
         protected_labels_idx = []
-
         for c, i in enumerate(dataset):
             i_protected_labels = i["protected_labels"]
             if not isinstance(i_protected_labels, list):
@@ -74,10 +74,11 @@ def describe(input_dir, protected_group):
                     continue
 
                 abstracts.append(i["abstract"])
+                pmids.append(i["pmid"])
                 labels.append(label_map(i["labels"]))
                 protected_labels.append(protected_label)
                 protected_labels_idx.append(p_label)
-
+        all_d.append((pmids, labels, protected_labels))
         labels = np.array(labels).astype(int)
         """
         print(f"Size: {len(labels)}")
@@ -94,10 +95,56 @@ def describe(input_dir, protected_group):
         """
         print_tsv(data_dist, inv_protected_label_map, protected_group, inv_label_mapping=INV_ROB_MAPPING)
 
+    return all_d
+
+
+def intersectional_desc(d_sex, d_area, split_set="train", out_f="/home/simon/Apps/SysRevData/data/modelling/plots/robotreviewer/intersectional.csv"):
+    import csv
+    from scipy.stats.contingency import crosstab
+
+    set_idx = {"train": 0, "dev": 1, "test": 2}[split_set]
+    # only train sets
+    joint_pmids = set(d_area[set_idx][0]) & set(d_sex[set_idx][0])
+
+    d = {}
+    for pmid, label, protected_label in zip(d_sex[set_idx][0], d_sex[set_idx][1], d_sex[set_idx][2]):
+        if pmid not in joint_pmids:
+            continue
+        if pmid not in d:
+            d[pmid] = {}
+        d[pmid]["label"] = label
+        d[pmid]["protected_label_sex"] = protected_label
+
+    for pmid, label, protected_label in zip(d_area[set_idx][0], d_area[set_idx][1], d_area[set_idx][2]):
+        if pmid not in joint_pmids:
+            continue
+        if pmid not in d:
+            d[pmid] = {}
+        d[pmid]["label"] = label
+        d[pmid]["protected_label_area"] = protected_label
+
+    sexes = [i["protected_label_sex"] for i in d.values()]
+    areas = [i["protected_label_area"] for i in d.values()]
+    results = crosstab(sexes, areas)
+
+    n_sex, n_area = results[1].shape
+
+    with open(out_f, "w") as fh_out:
+        writer = csv.writer(fh_out)
+        writer.writerow(("Area", "Sex", "Count"))
+        for i in range(n_sex):
+            for j in range(n_area):
+                sex = results[0][0][i]
+                area = results[0][1][j]
+                count = results[1][i][j]
+                writer.writerow((area, sex, count))
+
+    print()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-input_dir',
+    parser.add_argument('-input_dir', default="/home/simon/Apps/robotreviewer/rob_abstract_dataset_sex/",
                         help="directory containing prepared data")
     parser.add_argument('-protected_group',
                         help="name of the protected group: e.g. area, age, sex")
@@ -108,3 +155,7 @@ if __name__ == "__main__":
     freq_baseline_results = freq_baseline(f"{args.input_dir}/test.json")
     print(random_baseline_results)
     print(freq_baseline_results)
+
+    #d_sex = describe(args.input_dir, "sex")
+    #d_area = describe(args.input_dir.replace("sex", "area"), "area")
+    #intersectional_desc(d_sex, d_area, split_set="dev")

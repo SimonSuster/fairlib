@@ -346,3 +346,9 @@ def folds_results_to_csv(results, f, f_calib):
         writer_calib.writerow(("Models", "test_aurc_pos mean", "test_mce_pos mean", "test_ece_pos mean"))
         for model, d in results.items():
             writer_calib.writerow((model, d["aurc_pos"], d["mce_pos"], d["ece_pos"]))
+
+
+def shorten_debias_name(model):
+    mapping = {"ADV": "Adv", "DADV": "DAdv", "BTDownsampling": "DownS", "BTResampling": "ReS", "BTReweighting": "ReW"}
+
+    return mapping.get(model, model)

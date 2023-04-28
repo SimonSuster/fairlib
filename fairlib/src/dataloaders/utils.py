@@ -1,14 +1,29 @@
 import numpy as np
 import pandas as pd
 import torch
-from sysrev.modelling.allennlp.my_project.dataset_reader import NUMERICAL_FEATS, NUMERICAL_FEATS_PER_OUTCOME
 
 from .BT import get_weights, get_sampled_indices
 from .generalized_BT import get_data_distribution, manipulate_data_distribution
 
-
 CAT_TYPES = ["review_type", "type_effect", "topics"]
 TXT_TYPES = ["full_abstract_txt", "abstract_conclusion_txt", "plain_language_summary_txt", "authors_conclusions_txt"]
+NUMERICAL_FEATS = ["n_participants", "n_studies", "year", "n_sofs", "n_outcomes",
+                   "ci_lower", "ci_upper", "relative_effect", "n_included_studies", "n_excluded_studies",
+                   "n_ongoing_studies",
+                   "n_additional_studies", "n_other_studies"
+                   ]
+NUMERICAL_FEATS_PER_OUTCOME = ["val_chi2", "val_df", "val_i2", "val_i2_q", "val_p_chi2", "val_p_q", "val_p_z", "val_q",
+                               "val_tau2", "val_z", 'val_n_high_risk_alloc', 'val_n_high_risk_incom',
+                               'val_n_high_risk_other', 'val_n_high_risk_outco', 'val_n_high_risk_partb',
+                               'val_n_high_risk_blind', 'val_n_high_risk_rands', 'val_n_high_risk_selec',
+                               'val_n_low_risk_alloc', 'val_n_low_risk_incom', 'val_n_low_risk_other',
+                               'val_n_low_risk_outco', 'val_n_low_risk_partb', 'val_n_low_risk_blind',
+                               'val_n_low_risk_rands', 'val_n_low_risk_selec', 'val_n_unclear_risk_alloc',
+                               'val_n_unclear_risk_incom', 'val_n_unclear_risk_other', 'val_n_unclear_risk_outco',
+                               'val_n_unclear_risk_partb', 'val_n_unclear_risk_blind', 'val_n_unclear_risk_rands',
+                               'val_n_unclear_risk_selec', 'val_prop_high_risk_alloc', 'val_prop_high_risk_incom',
+                               'val_prop_high_risk_other', 'val_prop_high_risk_outco', 'val_prop_high_risk_partb',
+                               'val_prop_high_risk_blind', 'val_prop_high_risk_rands', 'val_prop_high_risk_selec']
 NUM_TYPES = NUMERICAL_FEATS + NUMERICAL_FEATS_PER_OUTCOME
 TOPICS = ["Allergy & intolerance", "Blood disorders", "Cancer", "Child health", "Complementary & alternative medicine",
           "Consumer & communication strategies", "Dentistry & oral health",
@@ -29,6 +44,7 @@ INV_PROTECTED_LABEL_MAP_AGE = {v: k for k, v in PROTECTED_LABEL_MAP_AGE.items()}
 SEX = ["Male", "Female", "Male and Female"]
 PROTECTED_LABEL_MAP_SEX = dict(zip(SEX, list(range(len(SEX)))))
 INV_PROTECTED_LABEL_MAP_SEX = {v: k for k, v in PROTECTED_LABEL_MAP_SEX.items()}
+INV_ROB_MAPPING = {1: "Low risk", 0: "High/unclear risk"}
 
 
 

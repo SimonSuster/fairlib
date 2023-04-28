@@ -1,140 +1,110 @@
-# *fairlib*
 
-[*fairlib*](https://github.com/HanXudong/fairlib) is a Python framework for assessing and improving fairness. Built-in
-algorithms can be applied to text inputs, structured inputs, and image inputs.
-
-The *fairlib* package includes metrics for fairness
-evaluation, [algorithms for bias mitigation](https://hanxudong.github.io/fairlib/supported_bias_mitigation_algorithms.html)
-, and functions for analysis.
-
-For those who want to start with *fairlib* now, you can try
-our [Colab Tutorial](https://colab.research.google.com/github/HanXudong/fairlib/blob/main/tutorial/fairlib_demo.ipynb),
-which provides a gentle introduction to the concepts and capabilities.
-[The tutorials and other notebooks](https://hanxudong.github.io/fairlib/tutorial_interactive_demos.html) offer a deeper
-introduction. The [complete API](https://hanxudong.github.io/fairlib) is also available.
+# Debiasing for automated quality assessment
 
 ## Installation
 
-*fairlib* currently requires Python3.7+ and [Pytorch](https://pytorch.org) 1.10 or higher. Dependencies of the core
-modules are listed in [`requirements.txt`](https://github.com/HanXudong/fairlib/blob/main/requirements.txt). We *
-strongly* recommend using a [venv](https://docs.python.org/3/library/venv.html) or [conda](https://www.anaconda.com/)
-environment for installation.
-
-**Standard Installation**
-
-If you do not need further modifications, you can install it with:
-
-```bash
-# Start a new virtual environment:
-conda create -n fairlib python=3.7
-conda activate fairlib
-
-pip install fairlib
-```
-
-**Development Installation**
+This extension of *fairlib* requires Python3.7+ and [Pytorch](https://pytorch.org) 1.10 or higher. Dependencies of the core
+modules are listed in `requirements.txt`. We recommend using a [venv](https://docs.python.org/3/library/venv.html) or [conda](https://www.anaconda.com/) environment for installation.
 
 To set up a development environment, run the following commands to clone the repository and install
 *fairlib*:
 
 ```bash
-git clone https://github.com/HanXudong/fairlib.git ~/fairlib
+git clone https://github.com/SimonSuster/fairlib
+git checkout develop
 cd ~/fairlib
 python setup.py develop
 ```
 
-**Benchmark Datasets**
+Note that you will also need to have the EvidenceGRADEr library installed in `EVIDENCEGRADER_DIR`:
 
-Please refer to [data/README.md](https://github.com/HanXudong/fairlib/blob/main/data/README.md) for a list of fairness
-benchmark datasets.
-
-## Usage
-
-The full description of *fairlib* usages can be found in [*
-fairlib* cheat sheet](https://hanxudong.github.io/fairlib/tutorial_usage.html) and API reference. Here are the most
-basic examples.
-
-- *fairlib* can be run from the command line:
-  ```bash
-  python fairlib --exp_id EXP_NAME
-  ```
-
-- *fairlib* can be imported as a package
-  ```python
-  from fairlib.base_options import options
-  from src import networks
-
-  config_file = 'opt.yaml'
-  # Get options
-  state = options.get_state(conf_file=config_file)
-
-  # Init the model
-  model = networks.get_main_model(state)
-
-  # Training with debiasing
-  model.train_self()
-  ```
-
-## Model Selection and Fairness Evaluation
-
-Besides the classical loss- and performance-based model selection, we provide performance-fairness trade-off based model
-selection (see the paper below).
-
-Please see [this tutorial](https://hanxudong.github.io/fairlib/tutorial_notebooks/tutorial_Moji_demo.html) for an
-example of loading training history, performing model selections based on different strategies, and creating basic
-plots.
-Moreover, [interactive plots](https://hanxudong.github.io/fairlib/tutorial_notebooks/tutorial_interactive_plots.html)
-are also supported, which can be used for analysis.
-
-## Known issues and limitations
-
-None are known at this time.
-
-## Getting help
-
-If you have any problem with our code or have some suggestions, including the future feature, feel free to contact
-
-- Xudong Han (xudongh1@student.unimelb.edu.au)
-
-or describe it in Issues.
-
-## Paper
-
-[fairlib: A Unified Framework for Assessing and Improving Classification Fairness](https://arxiv.org/abs/2205.01876)
-
-Cite Us
-
-```
-@article{han2022fairlib,
-  title={fairlib: A Unified Framework for Assessing and Improving Classification Fairness},
-  author={Han, Xudong and Shen, Aili and Li, Yitong and Frermann, Lea and Baldwin, Timothy and Cohn, Trevor},
-  journal={arXiv preprint arXiv:2205.01876},
-  year={2022}
-}
+```bash
+git clone git@bitbucket.org:aimedtech/evidencegrader.git
+export PYTHONPATH=$EVIDENCEGRADER_DIR
 ```
 
-## Contributing
+## Obtaining the data
+### TrialstreamerRoB
+Download the Area and Sex datasets from [here](https://drive.google.com/drive/folders/1-WSPIZDIgKKi30VtBqrhOpbYRIrl4Ota?usp=share_link) and unpack somewhere. We'll refer to the directory in which we unpacked `DATA_ROB`.
 
-We appreciate all contributions. If you are planning to contribute back bug-fixes, please do so without any further
-discussion. If you plan to contribute new features, utility functions or extensions, please first open an issue and
-discuss the feature with us.
+### EvidenceGRADEr
+A request to access the dataset should be referred first to the Cochrane Col
+laboration by emailing [support@cochrane.org](support@cochrane.org). When Cochrane permits (at its discretion) the use ofthe data by the third party, it will grant a license to use the Cochrane Database of Systematic Reviews, including a clause that confirms that Cochrane allows us to grant third party access to the data set created in this work. After that, please get in touch with us at the e-mail address [sim.suster@gmail.com](sim.suster@gmail.com) and we will send you the dataset.
+
+## Training and evaluating the models
+
+### TrialstreamerRoB
+
+Set the dataset path variable `data_dir` in `fairlib/tutorial/RoB/rr_settings_sex.py` and `fairlib/tutorial/RoB/rr_settings_area.py` to `DATA_ROB`. Also set `serialization_dir` to a location of your choice.
+
+To describe the Sex dataset and run the trivial baselines:
+
+```bash
+cd fairlib/data/src/RiskOfBias/
+python desc_dataset.py -input_dir $DATA_ROB/rob_abstract_dataset_sex/ -protected_group sex
+```
+
+To do the same for Area, just replace `sex` with `area`.
+
+To train the different models using Sex dataset:
+
+- Vanilla:
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_vanilla_sex.py
+```
+
+- DownS
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_debias_bt_sex.py "Downsampling"
+```
+
+- ReS
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_debias_bt_sex.py "Resampling"
+```
+
+- Rew
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_debias_bt_sex.py "Reweighting"
+```
+
+- Adv
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_debias_adv_sex.py 
+```
+
+- DAdv
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_debias_dadv_sex.py 
+```
+
+- FCL
+
+```bash
+cd tutorial/RoB
+PYTHONHASHSEED=0 python3.8 rr_debias_fcl_sex.py 
+```
+
+
+
+### EvidenceGRADEr
+TODO.
+
 
 ## License
 
 This project is distributed under the terms of
 the [APACHE LICENSE, VERSION 2.0](https://www.apache.org/licenses/LICENSE-2.0). The license applies to all files in
 the [GitHub repository](http://github.com/HanXudong/fairlib) hosting this file.
-
-## Acknowledgments
-
-* https://github.com/HanXudong/Decoupling_Adversarial_Training_for_Fair_NLP
-* https://github.com/HanXudong/Diverse_Adversaries_for_Mitigating_Bias_in_Training
-* https://github.com/SsnL/dataset-distillation
-* https://github.com/huggingface/torchMoji
-* https://github.com/mhucka/readmine
-* https://github.com/yanaiela/demog-text-removal
-* https://github.com/lrank/Robust_and_Privacy_preserving_Text_Representations
-* https://github.com/yuji-roh/fairbatch
-* https://github.com/shauli-ravfogel/nullspace_projection
-* https://github.com/AiliAili/contrastive_learning_fair_representations
-* https://github.com/AiliAili/Difference_Mean_Fair_Models

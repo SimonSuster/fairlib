@@ -1,11 +1,8 @@
-import csv
 import os
-
-import numpy as np
 
 from fairlib.src import analysis
 from fairlib.src.analysis.utils import get_calib_scores_folds, analyse_selective_classification
-from fairlib.src.utils import folds_results_to_csv, write_raw_out
+from fairlib.src.utils import folds_results_to_csv, write_raw_out, shorten_debias_name
 from tutorial.binaryGRADE.eg_settings_area import args
 
 task = "binaryGRADE"
@@ -197,13 +194,15 @@ if n_folds == 1:
 #EG_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGArea_results.csv"))
 #EG_calib_main_results.to_csv(os.path.join(Shared_options["results_dir"], Shared_options["project_dir"], "EGArea_calib_results.csv"))
 
-"""
-aurc_raw_out =False
+
+aurc_raw_out =True
+
 if aurc_raw_out:
     #assert (not pareto) and (selection_criterion is None) and (calib_selection_criterion == "performance")
-    with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_{task}_debias.csv", "w") as fh_out:
+    with open(f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_aurc_raw_{task}_debias_area.csv", "w") as fh_out:
         fh_out.write("model\tcriterion\ttopic\tcoverage\trisk\n")
         for model, d in EG_calib_results_folds.items():
+            model = shorten_debias_name(model)
             all_results = d["aurc_raw"]
             for coverage, risk in all_results:
                 fh_out.write("{}\t{}\t{}\t{}\t{}\n".format(model, task, "all", coverage, risk))
@@ -224,7 +223,7 @@ if aurc_raw_out:
                 if not results:
                     continue
                 fh_out.write("{}\t{}\t{}\t{}\n".format(model, task, protected_label, results["aurc"]))
-"""
+
 perf_raw_out =True
 if perf_raw_out:
     write_raw_out(EG_calib_results_folds, task, out_f=f"/home/simon/Apps/SysRevData/data/modelling/plots/evidencegrader/evidencegrader_perf_raw_{task}_area_debias.csv")
